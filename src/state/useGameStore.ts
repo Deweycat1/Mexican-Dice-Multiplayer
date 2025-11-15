@@ -479,7 +479,11 @@ export const useGameStore = create<Store>((set, get) => {
     set({ isBusy: true });
 
     try {
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      // Add suspense when game is close to ending (either player has 1-2 points left)
+      const isCloseGame = start.playerScore <= 2 || start.cpuScore <= 2;
+      const thinkingDelay = isCloseGame ? 3000 : 1000;
+      
+      await new Promise((resolve) => setTimeout(resolve, thinkingDelay));
 
       const state = get();
       if (state.gameOver || state.turn !== 'cpu') return;
