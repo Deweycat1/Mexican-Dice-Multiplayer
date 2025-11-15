@@ -1,0 +1,549 @@
+import { ClaimCategory, DicePair, normalizeRoll, rankValue } from '../engine/mexican';
+
+type Vector = number[];
+type Matrix = number[][];
+
+const identityMatrix = (size: number): Matrix => {
+  const matrix: Matrix = [];
+  for (let i = 0; i < size; i += 1) {
+    const row = new Array(size).fill(0);
+    row[i] = 1;
+    matrix.push(row);
+  }
+  return matrix;
+};
+
+const cloneMatrix = (input: Matrix): Matrix => input.map((row) => [...row]);
+
+const invertMatrix = (matrix: Matrix): Matrix => {
+  const size = matrix.length;
+  const augmented: Matrix = matrix.map((row, rowIndex) => [
+    ...row,
+    ...identityMatrix(size)[rowIndex],
+  ]);
+
+  for (let col = 0; col < size; col += 1) {
+    let pivot = col;
+    for (let row = col; row < size; row += 1) {
+      if (Math.abs(augmented[row][col]) > Math.abs(augmented[pivot][col])) {
+        pivot = row;
+      }
+    }
+    if (Math.abs(augmented[pivot][col]) < 1e-12) {
+      throw new Error('Matrix is singular and cannot be inverted');
+    }
+    if (pivot !== col) {
+      const temp = augmented[col];
+      augmented[col] = augmented[pivot];
+      augmented[pivot] = temp;
+    }
+    const pivotValue = augmented[col][col];
+    for (let j = 0; j < 2 * size; j += 1) {
+      augmented[col][j] /= pivotValue;
+    }
+    for (let row = 0; row < size; row += 1) {
+      if (row !== col) {
+        const factor = augmented[row][col];
+        for (let j = 0; j < 2 * size; j += 1) {
+          augmented[row][j] -= factor * augmented[col][j];
+        }
+      }
+    }
+  }
+
+  const inverse: Matrix = [];
+  for (let i = 0; i < size; i += 1) {
+    inverse.push(augmented[i].slice(size));
+  }
+  return inverse;
+};
+
+const matrixVectorProduct = (matrix: Matrix, vector: Vector): Vector =>
+  matrix.map((row) => row.reduce((sum, value, index) => sum + value * vector[index], 0));
+
+const outerProduct = (vector: Vector): Matrix => {
+  const size = vector.length;
+  const result: Matrix = Array.from({ length: size }, () => new Array(size).fill(0));
+  for (let i = 0; i < size; i += 1) {
+    for (let j = 0; j < size; j += 1) {
+      result[i][j] = vector[i] * vector[j];
+    }
+  }
+  return result;
+};
+
+const addMatrixInPlace = (target: Matrix, increment: Matrix) => {
+  for (let i = 0; i < target.length; i += 1) {
+    for (let j = 0; j < target[i].length; j += 1) {
+      target[i][j] += increment[i][j];
+    }
+  }
+};
+
+class BetaTracker {
+  alpha: number;
+
+  beta: number;
+
+  constructor(alpha = 1, beta = 1) {
+    this.alpha = alpha;
+    this.beta = beta;
+  }
+
+  mean() {
+    return this.alpha / (this.alpha + this.beta);
+  }
+
+  thompson() {
+    // Basic Beta sampling via inverse transform (fallback for deterministic tests)
+    const u = Math.random();
+    return this.quantile(u);
+  }
+
+  update(success: boolean) {
+    if (success) {
+      this.alpha += 1;
+    } else {
+      this.beta += 1;
+    }
+  }
+
+  private quantile(p: number) {
+    // Approximate inverse Beta using arithmetic mean approximation.
+    const total = this.alpha + this.beta;
+    const mu = this.mean();
+    const variance = (this.alpha * this.beta) / (total * total * (total + 1));
+    const sigma = Math.sqrt(Math.max(variance, 1e-9));
+    const z = Math.sqrt(2) * inverseErf(2 * p - 1);
+    const value = mu + z * sigma;
+    if (Number.isNaN(value)) {
+      return mu;
+    }
+    return Math.min(Math.max(value, 0), 1);
+  }
+}
+
+const inverseErf = (x: number) => {
+  // Approximation by Numerical Recipes
+  const a = 0.147;
+  const ln = Math.log(1 - x * x);
+  const first = (2 / (Math.PI * a)) + ln / 2;
+  const second = Math.sqrt(first * first - ln / a);
+  const sign = x < 0 ? -1 : 1;
+  return sign * Math.sqrt(second - first);
+};
+
+class OpponentProfile {
+  bluffRate: Record<string, BetaTracker>;
+
+  callRate: BetaTracker;
+
+  smallRaisePref: BetaTracker;
+
+  constructor() {
+    this.bluffRate = {
+      mexican: new BetaTracker(1, 3),
+      double: new BetaTracker(1, 2),
+      normal: new BetaTracker(1, 1),
+      special: new BetaTracker(1, 1),
+    };
+    this.callRate = new BetaTracker(1, 2);
+    this.smallRaisePref = new BetaTracker(1, 1);
+  }
+}
+
+class LinUCB {
+  private readonly d: number;
+
+  private readonly alpha: number;
+
+  A: Matrix;
+
+  b: Vector;
+
+  constructor(d: number, alpha = 0.9) {
+    this.d = d;
+    this.alpha = alpha;
+    this.A = identityMatrix(d);
+    this.b = new Array(d).fill(0);
+  }
+
+  private Ainv() {
+    return invertMatrix(this.A);
+  }
+
+  choose(contexts: Record<string, Vector>) {
+    const inv = this.Ainv();
+    const theta = matrixVectorProduct(inv, this.b);
+    const scores: Record<string, number> = {};
+
+    Object.entries(contexts).forEach(([action, vector]) => {
+      const mu = vector.reduce((sum, value, index) => sum + theta[index] * value, 0);
+      const tmp = matrixVectorProduct(inv, vector);
+      const variance = vector.reduce((sum, value, index) => sum + value * tmp[index], 0);
+      const bonus = this.alpha * Math.sqrt(Math.max(variance, 0));
+      scores[action] = mu + bonus;
+    });
+
+    const best = Object.entries(scores).reduce((acc, entry) => (entry[1] > acc[1] ? entry : acc));
+    return { action: best[0], scores };
+  }
+
+  update(vector: Vector, reward: number) {
+    addMatrixInPlace(this.A, outerProduct(vector));
+    this.b = this.b.map((value, index) => value + reward * vector[index]);
+  }
+
+  snapshot() {
+    return {
+      A: cloneMatrix(this.A),
+      b: [...this.b],
+    };
+  }
+
+  load(state: { A: number[][]; b: number[] }) {
+    this.A = cloneMatrix(state.A);
+    this.b = [...state.b];
+  }
+}
+
+type LastContext = {
+  opponentId: string;
+  action: 'CALL' | 'RAISE';
+  context: Vector;
+} | null;
+
+export class LearningAIDiceOpponent {
+  private readonly playerId: string;
+
+  private readonly bandit: LinUCB;
+
+  private readonly profiles = new Map<string, OpponentProfile>();
+
+  private callRiskBias = 0.05;
+
+  private truthBias = 0.15;
+
+  private lastContext: LastContext = null;
+
+  private compareClaimsFn: ((a: number, b: number) => 1 | 0 | -1) | null = null;
+
+  private nextHigherClaimFn: ((value: number) => number | null) | null = null;
+
+  private categorizeClaimFn: ((value: number | null) => ClaimCategory) | null = null;
+
+  private claimMatchesRollFn: ((claim: number | null, roll: number | DicePair | null) => boolean) | null = null;
+
+  constructor(playerId = 'CPU') {
+    this.playerId = playerId;
+    this.bandit = new LinUCB(12, 0.9);
+  }
+
+  setRules(
+    compareFn: (a: number, b: number) => 1 | 0 | -1,
+    nextHigherFn: (value: number) => number | null,
+    categorizeFn: (value: number | null) => ClaimCategory,
+    claimMatchesFn: (claim: number | null, roll: number | DicePair | null) => boolean
+  ) {
+    this.compareClaimsFn = compareFn;
+    this.nextHigherClaimFn = nextHigherFn;
+    this.categorizeClaimFn = categorizeFn;
+    this.claimMatchesRollFn = claimMatchesFn;
+  }
+
+  decideAction(
+    opponentId: string,
+    currentClaim: number | null,
+    myRoll: DicePair,
+    roundIndex = 0
+  ): { type: 'call_bluff' } | { type: 'raise'; claim: number } {
+    this.assertRulesReady();
+
+    if (currentClaim == null) {
+      let opening = this.canonicalClaimFromRoll(myRoll);
+      if (this.isWeakTruth(opening)) {
+        opening = this.pressureJumpAbove(normalizeRoll(3, 2));
+      }
+      this.lastContext = null;
+      return { type: 'raise', claim: opening };
+    }
+
+    const truthful = this.bestTruthfulAbove(currentClaim, myRoll);
+    if (truthful != null && Math.random() < 0.65 + this.truthBias) {
+      this.lastContext = null;
+      return { type: 'raise', claim: truthful };
+    }
+
+    const profile = this.getProfile(opponentId);
+    const category = this.categorizeClaimFn!(currentClaim);
+    const catBluffMean = (profile.bluffRate[category] ?? new BetaTracker(1, 1)).mean();
+    const pCallMean = profile.callRate.mean();
+    const dist = this.distanceFromTruth(currentClaim, myRoll);
+    const oneHot = this.categoryOneHot(category);
+
+    const callContext = this.makeContext(
+      currentClaim,
+      roundIndex,
+      oneHot,
+      catBluffMean,
+      pCallMean,
+      truthful != null,
+      dist,
+      0
+    );
+    const raiseContext = this.makeContext(
+      currentClaim,
+      roundIndex,
+      oneHot,
+      catBluffMean,
+      pCallMean,
+      truthful != null,
+      dist,
+      1
+    );
+
+    const { action } = this.bandit.choose({ CALL: callContext, RAISE: raiseContext });
+
+    if (action === 'CALL') {
+      const pBluffSample = (profile.bluffRate[category] ?? new BetaTracker(1, 1)).mean();
+      const evCall = (2 * pBluffSample - 1) - this.callRiskBias;
+      if (evCall >= -0.15) {
+        this.lastContext = { opponentId, action: 'CALL', context: callContext };
+        return { type: 'call_bluff' };
+      }
+    }
+
+    const claim = truthful != null && Math.random() < 0.7 + this.truthBias
+      ? truthful
+      : this.pickPressureClaim(currentClaim, true);
+
+    this.lastContext = { opponentId, action: 'RAISE', context: raiseContext };
+    return { type: 'raise', claim };
+  }
+
+  observeShowdown(opponentId: string, opponentClaim: number | null, actualOpponentRoll: number | null) {
+    if (opponentClaim == null || actualOpponentRoll == null) return;
+    const wasBluff = !this.claimMatchesRollFn!(opponentClaim, actualOpponentRoll);
+    const category = this.categorizeClaimFn!(opponentClaim);
+    const profile = this.getProfile(opponentId);
+    profile.bluffRate[category] = profile.bluffRate[category] ?? new BetaTracker(1, 1);
+    profile.bluffRate[category].update(wasBluff);
+  }
+
+  observeOurRaiseResolved(opponentId: string, cpuClaim: number | null, cpuRoll: number | null, opponentCalled: boolean) {
+    if (cpuClaim == null || cpuRoll == null) return;
+    const profile = this.getProfile(opponentId);
+    profile.callRate.update(opponentCalled);
+  }
+
+  observeOpponentRaiseSize(opponentId: string, currentClaim: number | null, newClaim: number | null) {
+    if (currentClaim == null || newClaim == null) return;
+    const steps = this.stepDistance(currentClaim, newClaim);
+    const profile = this.getProfile(opponentId);
+    profile.smallRaisePref.update(steps <= 1);
+  }
+
+  observeRoundOutcome(didCpuWinRound: boolean) {
+    if (!this.lastContext) return;
+    this.bandit.update(this.lastContext.context, didCpuWinRound ? 1 : -1);
+    this.lastContext = null;
+  }
+
+  state() {
+    const profileEntries: Record<string, {
+      bluffRate: Record<string, [number, number]>;
+      callRate: [number, number];
+      smallRaisePref: [number, number];
+    }> = {};
+
+    this.profiles.forEach((profile, key) => {
+      profileEntries[key] = {
+        bluffRate: Object.fromEntries(
+          Object.entries(profile.bluffRate).map(([cat, tracker]) => [cat, [tracker.alpha, tracker.beta]])
+        ),
+        callRate: [profile.callRate.alpha, profile.callRate.beta],
+        smallRaisePref: [profile.smallRaisePref.alpha, profile.smallRaisePref.beta],
+      };
+    });
+
+    return {
+      profiles: profileEntries,
+      bandit: this.bandit.snapshot(),
+    };
+  }
+
+  loadState(state: {
+    profiles?: Record<string, {
+      bluffRate: Record<string, [number, number]>;
+      callRate: [number, number];
+      smallRaisePref: [number, number];
+    }>;
+    bandit?: { A: number[][]; b: number[] };
+  }) {
+    if (state.bandit) {
+      this.bandit.load(state.bandit);
+    }
+    Object.entries(state.profiles ?? {}).forEach(([opponentId, data]) => {
+      const profile = new OpponentProfile();
+      Object.entries(data.bluffRate ?? {}).forEach(([cat, [alpha, beta]]) => {
+        profile.bluffRate[cat] = new BetaTracker(alpha, beta);
+      });
+      const [callAlpha, callBeta] = data.callRate ?? [1, 1];
+      profile.callRate = new BetaTracker(callAlpha, callBeta);
+      const [smallAlpha, smallBeta] = data.smallRaisePref ?? [1, 1];
+      profile.smallRaisePref = new BetaTracker(smallAlpha, smallBeta);
+      this.profiles.set(opponentId, profile);
+    });
+  }
+
+  profileSnapshot(opponentId: string) {
+    const profile = this.getProfile(opponentId);
+    return {
+      bluffRate: Object.fromEntries(
+        Object.entries(profile.bluffRate).map(([cat, tracker]) => [cat, tracker.mean()])
+      ),
+      callRate: profile.callRate.mean(),
+      smallRaisePref: profile.smallRaisePref.mean(),
+    };
+  }
+
+  banditSnapshot() {
+    return this.bandit.snapshot();
+  }
+
+  private assertRulesReady() {
+    if (
+      !this.compareClaimsFn ||
+      !this.nextHigherClaimFn ||
+      !this.categorizeClaimFn ||
+      !this.claimMatchesRollFn
+    ) {
+      throw new Error('LearningAIDiceOpponent rules not configured');
+    }
+  }
+
+  private getProfile(opponentId: string) {
+    if (!this.profiles.has(opponentId)) {
+      this.profiles.set(opponentId, new OpponentProfile());
+    }
+    return this.profiles.get(opponentId)!;
+  }
+
+  private canonicalClaimFromRoll(roll: DicePair) {
+    return normalizeRoll(roll[0], roll[1]);
+  }
+
+  private bestTruthfulAbove(currentClaim: number, myRoll: DicePair) {
+    const truthClaim = this.canonicalClaimFromRoll(myRoll);
+    return this.compareClaimsFn!(truthClaim, currentClaim) > 0 ? truthClaim : null;
+  }
+
+  private pickPressureClaim(currentClaim: number, allowBluff: boolean) {
+    let step = 1;
+    if (allowBluff) {
+      const profile = this.getProfile('player');
+      const callMean = profile.callRate.mean();
+      const rand = Math.random();
+      if (callMean > 0.55 && rand < 0.5) step += 1;
+      if (callMean > 0.65 && rand < 0.25) step += 1;
+    }
+    let claim: number | null = currentClaim;
+    for (let i = 0; i < step; i += 1) {
+      const next = this.nextHigherClaimFn!(claim!);
+      if (next == null) {
+        claim = 21;
+        break;
+      }
+      claim = next;
+    }
+    return claim ?? currentClaim;
+  }
+
+  private pressureJumpAbove(baseline: number) {
+    let claim: number | null = baseline;
+    const steps = Math.random() < 0.66 ? 1 : 2;
+    for (let i = 0; i < steps; i += 1) {
+      const next = this.nextHigherClaimFn!(claim!);
+      if (next == null) {
+        claim = 21;
+        break;
+      }
+      claim = next;
+    }
+    return claim ?? baseline;
+  }
+
+  private isWeakTruth(claim: number) {
+    return this.categorizeClaimFn!(claim) === 'normal';
+  }
+
+  private categoryOneHot(category: ClaimCategory) {
+    return [
+      category === 'mexican' ? 1 : 0,
+      category === 'double' ? 1 : 0,
+      category === 'normal' ? 1 : 0,
+      category === 'special' ? 1 : 0,
+    ];
+  }
+
+  private distanceFromTruth(currentClaim: number, myRoll: DicePair) {
+    const truth = this.canonicalClaimFromRoll(myRoll);
+    if (this.compareClaimsFn!(truth, currentClaim) <= 0) return 0;
+    let steps = 0;
+    let cursor: number | null = currentClaim;
+    while (cursor != null && this.compareClaimsFn!(cursor, truth) < 0 && steps < 20) {
+      cursor = this.nextHigherClaimFn!(cursor);
+      steps += 1;
+    }
+    return steps;
+  }
+
+  private stepDistance(a: number, b: number) {
+    if (this.compareClaimsFn!(a, b) >= 0) return 0;
+    let steps = 0;
+    let cursor: number | null = a;
+    while (cursor != null && this.compareClaimsFn!(cursor, b) < 0 && steps < 30) {
+      cursor = this.nextHigherClaimFn!(cursor);
+      steps += 1;
+    }
+    return steps;
+  }
+
+  private makeContext(
+    currentClaim: number,
+    roundIndex: number,
+    categoryVector: number[],
+    catBluffMean: number,
+    pCallMean: number,
+    truthPossible: boolean,
+    distance: number,
+    actionFlag: number
+  ): Vector {
+    const claimStrength = this.normalizeClaimStrength(currentClaim);
+    const roundFeature = Math.min(roundIndex / 12, 1);
+    const distFeature = Math.min(distance / 6, 1);
+    return [
+      1,
+      claimStrength,
+      roundFeature,
+      categoryVector[0],
+      categoryVector[1],
+      categoryVector[2],
+      categoryVector[3],
+      catBluffMean,
+      pCallMean,
+      truthPossible ? 1 : 0,
+      distFeature,
+      actionFlag,
+    ];
+  }
+
+  private normalizeClaimStrength(claim: number) {
+    const max = rankValue(21);
+    const min = rankValue(31);
+    const value = rankValue(claim);
+    return (value - min) / (max - min);
+  }
+}
+
+export default LearningAIDiceOpponent;
