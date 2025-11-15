@@ -307,7 +307,20 @@ export class LearningAIDiceOpponent {
     if (action === 'CALL') {
       const pBluffSample = (profile.bluffRate[category] ?? new BetaTracker(1, 1)).mean();
       const evCall = (2 * pBluffSample - 1) - this.callRiskBias;
-      if (evCall >= -0.15) {
+      
+      // Dynamic threshold: more aggressive on high-value claims
+      let threshold = -0.15;
+      if (category === 'mexican') {
+        // Mexican (21) - extremely suspicious, 10% more aggressive
+        threshold = 0.05;
+      } else if (category === 'double') {
+        // High doubles (55+) are harder to roll, 8% more skeptical
+        if (currentClaim >= 55) {
+          threshold = 0.01;
+        }
+      }
+      
+      if (evCall >= threshold) {
         this.lastContext = { opponentId, action: 'CALL', context: callContext };
         return { type: 'call_bluff' };
       }

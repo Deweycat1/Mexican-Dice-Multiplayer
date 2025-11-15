@@ -325,7 +325,7 @@ export default function Survival() {
                 {survivalClaims && survivalClaims.length > 0 ? (
                   [...survivalClaims.slice(-2)].reverse().map((h, i) => (
                     <Text key={i} style={styles.historyText} numberOfLines={1}>
-                      {h.type === 'event' ? h.text : `${h.who === 'player' ? 'You' : 'The Rival'} claimed ${formatClaim(h.claim)}`}
+                      {h.type === 'event' ? h.text : `${h.who === 'player' ? 'You' : 'The Rival'} ${h.claim === 41 ? 'rolled' : 'claimed'} ${formatClaim(h.claim)}`}
                     </Text>
                   ))
                 ) : (
@@ -451,7 +451,7 @@ export default function Survival() {
                     [...survivalClaims].reverse().map((h, i) => (
                       <View key={i} style={styles.historyItem}>
                         <Text style={styles.historyItemText}>
-                          {h.type === 'event' ? h.text : `${h.who === 'player' ? 'You' : 'The Rival'} claimed ${formatClaim(h.claim)}`}
+                          {h.type === 'event' ? h.text : `${h.who === 'player' ? 'You' : 'The Rival'} ${h.claim === 41 ? 'rolled' : 'claimed'} ${formatClaim(h.claim)}`}
                         </Text>
                       </View>
                     ))
