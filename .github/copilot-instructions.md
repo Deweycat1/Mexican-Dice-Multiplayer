@@ -147,6 +147,7 @@ npm run web           # Web-only mode (uses localStorage for persistence)
 4. **Turn lock management** - wrap async operations with `beginTurnLock()`/`endTurnLock()` to prevent UI race conditions
 5. **AI state persistence** - `saveAiState()` must be called after every `observe*()` method
 6. **Survival history separation** - Use `survivalHistory`/`survivalClaims`, not `history`/`claims` in survival mode
+7. **Claims history persistence** - `newGame()` does NOT reset `claims[]` array to preserve history across games in Quick Play sessions
 
 ## File Conventions
 - Components: PascalCase (`BluffModal.tsx`, `NarrationBanner.tsx`)

@@ -663,11 +663,11 @@ export const useGameStore = create<Store>((set, get) => {
         isRolling: false,
         mustBluff: false,
         message: 'New game — good luck!',
-  history: [],
-  claims: [],
-  survivalPlayerScore: STARTING_SCORE,
-  survivalCpuScore: STARTING_SCORE,
-  // do not touch survivalHistory here; it is for survival mode sessions
+        history: [],
+        // DO NOT reset claims[] - preserve history across games in Quick Play
+        survivalPlayerScore: STARTING_SCORE,
+        survivalCpuScore: STARTING_SCORE,
+        // do not touch survivalHistory here; it is for survival mode sessions
         survivalClaims: [],
         turnLock: false,
         isBusy: false,
