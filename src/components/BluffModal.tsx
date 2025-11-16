@@ -1,5 +1,5 @@
 import React from 'react';
-import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 type Props = {
   visible: boolean;
@@ -23,13 +23,19 @@ export default function BluffModal({ visible, options, onCancel, onSelect, canSh
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onCancel}>
       <View style={styles.backdrop}>
+        <Pressable style={styles.backdropPress} onPress={onCancel} />
         <View style={styles.card}>
           <Text style={styles.heading}>Choose your claim</Text>
           <Text style={styles.subtle}>
-            Select a legal claim. You can now match or beat the previous claim. 21 and 31 are always available. 41 must be shown, not bluffed.
+            Select a legal claim or tap Cancel/outside to keep your roll.
           </Text>
 
-          <View style={styles.optionList}>
+          <ScrollView 
+            style={styles.optionList}
+            contentContainerStyle={styles.optionListContent}
+            showsVerticalScrollIndicator={true}
+            persistentScrollbar={true}
+          >
             {options.map((value) => (
               <Pressable
                 key={value}
@@ -41,25 +47,31 @@ export default function BluffModal({ visible, options, onCancel, onSelect, canSh
                 <Text style={styles.optionLabel}>{formatClaim(value)}</Text>
               </Pressable>
             ))}
-          </View>
 
-          {canShowSocial && (
-            <Pressable
-              style={({ pressed }) =>
-                StyleSheet.flatten([
-                  styles.option,
-                  styles.socialOption,
-                  pressed && styles.optionPressed,
-                ])
-              }
-              onPress={onShowSocial}
-            >
-              <Text style={styles.optionLabel}>Show 41 (Social) — Reset Round</Text>
-            </Pressable>
-          )}
+            {canShowSocial && (
+              <Pressable
+                style={({ pressed }) =>
+                  StyleSheet.flatten([
+                    styles.option,
+                    styles.socialOption,
+                    pressed && styles.optionPressed,
+                  ])
+                }
+                onPress={onShowSocial}
+              >
+                <Text style={styles.optionLabel}>Show 41 (Social) — Reset Round</Text>
+              </Pressable>
+            )}
+          </ScrollView>
 
-          <Pressable style={styles.cancel} onPress={onCancel}>
-            <Text style={styles.cancelLabel}>Cancel</Text>
+          <Pressable 
+            style={({ pressed }) => [
+              styles.cancel,
+              pressed && styles.cancelPressed
+            ]} 
+            onPress={onCancel}
+          >
+            <Text style={styles.cancelLabel}>✕ Cancel - Keep My Roll</Text>
           </Pressable>
         </View>
       </View>
@@ -70,22 +82,45 @@ export default function BluffModal({ visible, options, onCancel, onSelect, canSh
 const styles = StyleSheet.create({
   backdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    backgroundColor: 'rgba(0,0,0,0.7)',
     alignItems: 'center',
     justifyContent: 'center',
     padding: 24,
   },
+  backdropPress: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+  },
   card: {
     width: '100%',
+    maxHeight: '80%',
     backgroundColor: '#113b2b',
     borderRadius: 18,
     padding: 20,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.08)',
+    zIndex: 1,
   },
-  heading: { color: '#fff', fontWeight: '800', fontSize: 20 },
-  subtle: { color: '#cfeee2', marginTop: 6 },
-  optionList: { marginTop: 16 },
+  heading: { 
+    color: '#fff', 
+    fontWeight: '800', 
+    fontSize: 20,
+    marginBottom: 8,
+  },
+  subtle: { 
+    color: '#cfeee2', 
+    marginBottom: 16,
+    fontSize: 14,
+  },
+  optionList: { 
+    maxHeight: 400,
+  },
+  optionListContent: {
+    paddingBottom: 8,
+  },
   option: {
     backgroundColor: '#1a5a40',
     borderRadius: 12,
@@ -98,19 +133,33 @@ const styles = StyleSheet.create({
   optionPressed: {
     backgroundColor: '#236f51',
   },
-  optionLabel: { color: '#fff', fontWeight: '700', fontSize: 18, textAlign: 'center' },
+  optionLabel: { 
+    color: '#fff', 
+    fontWeight: '700', 
+    fontSize: 18, 
+    textAlign: 'center' 
+  },
   socialOption: {
     backgroundColor: '#26775a',
   },
   cancel: {
-    marginTop: 14,
-    alignSelf: 'center',
-    paddingVertical: 8,
-    paddingHorizontal: 16,
+    marginTop: 16,
+    backgroundColor: '#8B0000',
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    alignSelf: 'stretch',
+    borderWidth: 2,
+    borderColor: 'rgba(255,255,255,0.15)',
+  },
+  cancelPressed: {
+    backgroundColor: '#A52A2A',
+    opacity: 0.8,
   },
   cancelLabel: {
-    color: '#cfeee2',
-    fontWeight: '600',
-    fontSize: 15,
+    color: '#fff',
+    fontWeight: '700',
+    fontSize: 16,
+    textAlign: 'center',
   },
 });
