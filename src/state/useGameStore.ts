@@ -58,6 +58,7 @@ export type Store = {
   turn: Turn;
 
   lastClaim: number | null;
+  baselineClaim: number | null;  // Tracks original claim before any reverses (31/41)
   lastAction: LastAction;
   lastPlayerRoll: number | null;
   lastCpuRoll: number | null;
@@ -324,6 +325,7 @@ export const useGameStore = create<Store>((set, get) => {
     pendingCpuRaise = null;
     set({
       lastClaim: null,
+      baselineClaim: null,  // Reset baseline at round start
       lastAction: 'normal',
       lastPlayerRoll: null,
       lastCpuRoll: null,
@@ -537,6 +539,9 @@ export const useGameStore = create<Store>((set, get) => {
       // Check if we're in Mexican lockdown (either direct 21, or 31 from reverseVsMexican)
       const inMexicanLockdown = isMexican(lastClaim) || state.lastAction === 'reverseVsMexican';
       
+      // Use baselineClaim for legality checks (preserves original claim through reverses)
+      const claimToCheck = state.baselineClaim ?? lastClaim;
+      
       if (inMexicanLockdown) {
         // In Mexican lockdown, only 21, 31, 41 are legal
         if (!isAlwaysClaimable(claim)) {
@@ -544,8 +549,8 @@ export const useGameStore = create<Store>((set, get) => {
           // Prefer the actual roll if it's special, otherwise default to 21
           claim = isAlwaysClaimable(actual) ? actual : 21;
         }
-      } else if (!isLegalRaise(lastClaim, claim)) {
-        claim = legalTruth ? actual : nextHigherClaim(lastClaim ?? actual) ?? 21;
+      } else if (!isLegalRaise(claimToCheck, claim)) {
+        claim = legalTruth ? actual : nextHigherClaim(claimToCheck ?? actual) ?? 21;
       }
 
       const actionFlag: LastAction =
@@ -583,8 +588,16 @@ export const useGameStore = create<Store>((set, get) => {
       // Record claim statistics (async, non-blocking)
       void recordClaimStat(claim);
 
+      // Update baseline logic: preserve baseline through reverses
+      const currentState = get();
+      const isReverseClaim = previousClaim != null && isReverseOf(previousClaim, claim);
+      const newBaseline = isReverseClaim 
+        ? (currentState.baselineClaim ?? previousClaim)  // Keep existing baseline or use prev if first reverse
+        : claim;  // Non-reverse claims become new baseline
+
       set({
         lastClaim: claim,
+        baselineClaim: newBaseline,
         lastAction: actionFlag,
         turn: 'player',
         lastPlayerRoll: null,
@@ -612,6 +625,7 @@ export const useGameStore = create<Store>((set, get) => {
   survivalClaims: [],
 
     lastClaim: null,
+    baselineClaim: null,  // Initialize baseline claim tracking
     lastAction: 'normal',
     lastPlayerRoll: null,
     lastCpuRoll: null,
@@ -642,6 +656,7 @@ export const useGameStore = create<Store>((set, get) => {
         cpuScore: STARTING_SCORE,
         turn: 'player',
         lastClaim: null,
+        baselineClaim: null,  // Reset baseline
         lastAction: 'normal',
         lastPlayerRoll: null,
         lastCpuRoll: null,
@@ -744,12 +759,15 @@ export const useGameStore = create<Store>((set, get) => {
         return;
       }
 
-      if (!isLegalRaise(prev, claim)) {
+      // Use baselineClaim for legality checks (preserves original claim through reverses)
+      const claimToCheck = state.baselineClaim ?? prev;
+      
+      if (!isLegalRaise(claimToCheck, claim)) {
         set({
           message:
-            prev == null
+            claimToCheck == null
               ? 'Choose a valid claim.'
-              : `Claim ${claim} must beat ${prev}.`,
+              : `Claim ${claim} must beat ${claimToCheck}.`,
           isBusy: false,
         });
         endTurnLock();
@@ -803,8 +821,15 @@ export const useGameStore = create<Store>((set, get) => {
       // record player's claim in normal mode
       pushClaim('player', claim, state.lastPlayerRoll);
 
+      // Update baseline logic: preserve baseline through reverses
+      const isReverseClaim = isReverseOf(prev, claim);
+      const newBaseline = isReverseClaim 
+        ? (state.baselineClaim ?? prev)  // Keep existing baseline or use prev if first reverse
+        : claim;  // Non-reverse claims become new baseline
+
       set({
         lastClaim: claim,
+        baselineClaim: newBaseline,
         lastAction: action,
         turn: 'cpu',
         mustBluff: false,

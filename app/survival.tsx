@@ -2,14 +2,14 @@ import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Animated,
-  Image,
-  Modal,
-  Pressable,
-  SafeAreaView,
-  StyleSheet,
-  Text,
-  View,
+    Animated,
+    Image,
+    Modal,
+    Pressable,
+    SafeAreaView,
+    StyleSheet,
+    Text,
+    View,
 } from 'react-native';
 
 import BluffModal from '../src/components/BluffModal';
