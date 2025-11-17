@@ -220,9 +220,9 @@ export class LearningAIDiceOpponent {
 
   private readonly profiles = new Map<string, OpponentProfile>();
 
-  private callRiskBias = 0.05;
+  private callRiskBias = -0.08;
 
-  private truthBias = 0.15;
+  private truthBias = 0.05;
 
   private lastContext: LastContext = null;
 
@@ -236,7 +236,7 @@ export class LearningAIDiceOpponent {
 
   constructor(playerId = 'CPU') {
     this.playerId = playerId;
-    this.bandit = new LinUCB(12, 0.9);
+    this.bandit = new LinUCB(12, 0.5);
   }
 
   setRules(
@@ -269,7 +269,7 @@ export class LearningAIDiceOpponent {
     }
 
     const truthful = this.bestTruthfulAbove(currentClaim, myRoll);
-    if (truthful != null && Math.random() < 0.65 + this.truthBias) {
+    if (truthful != null && Math.random() < 0.55 + this.truthBias) {
       this.lastContext = null;
       return { type: 'raise', claim: truthful };
     }
@@ -309,14 +309,16 @@ export class LearningAIDiceOpponent {
       const evCall = (2 * pBluffSample - 1) - this.callRiskBias;
       
       // Dynamic threshold: more aggressive on high-value claims
-      let threshold = -0.15;
+      let threshold = -0.25;
       if (category === 'mexican') {
-        // Mexican (21) - extremely suspicious, 10% more aggressive
-        threshold = 0.05;
+        // Mexican (21) - extremely suspicious, much more aggressive
+        threshold = -0.05;
       } else if (category === 'double') {
-        // High doubles (55+) are harder to roll, 8% more skeptical
+        // High doubles (55+) are harder to roll, more skeptical
         if (currentClaim >= 55) {
-          threshold = 0.01;
+          threshold = -0.12;
+        } else if (currentClaim >= 44) {
+          threshold = -0.18;
         }
       }
       
@@ -326,7 +328,7 @@ export class LearningAIDiceOpponent {
       }
     }
 
-    const claim = truthful != null && Math.random() < 0.7 + this.truthBias
+    const claim = truthful != null && Math.random() < 0.60 + this.truthBias
       ? truthful
       : this.pickPressureClaim(currentClaim, true);
 
