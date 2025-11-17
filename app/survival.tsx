@@ -16,6 +16,8 @@ import BluffModal from '../src/components/BluffModal';
 import Dice from '../src/components/Dice';
 import FeltBackground from '../src/components/FeltBackground';
 import FireworksOverlay from '../src/components/FireworksOverlay';
+import ParticleBurst from '../src/components/ParticleBurst';
+import StreakCelebrationOverlay from '../src/components/StreakCelebrationOverlay';
 import StyledButton from '../src/components/StyledButton';
 import { isAlwaysClaimable, meetsOrBeats, splitClaim } from '../src/engine/mexican';
 import { buildClaimOptions } from '../src/lib/claimOptions';
@@ -47,6 +49,28 @@ export default function Survival() {
   const [rollingAnim, setRollingAnim] = useState(false);
   const [showFireworks, setShowFireworks] = useState(false);
   const [historyModalOpen, setHistoryModalOpen] = useState(false);
+
+  // Milestone tracking state
+  const [hasShown5, setHasShown5] = useState(false);
+  const [hasShown10, setHasShown10] = useState(false);
+  const [hasShown15, setHasShown15] = useState(false);
+  const [hasShownNewLeader, setHasShownNewLeader] = useState(false);
+
+  // Celebration overlay state
+  const [celebrationVisible, setCelebrationVisible] = useState(false);
+  const [celebrationTitle, setCelebrationTitle] = useState('');
+  const [celebrationMode, setCelebrationMode] = useState<'5' | '10' | '15' | 'newLeader'>('5');
+
+  // Particle burst state
+  const [showParticleBurst, setShowParticleBurst] = useState(false);
+
+  // Animation refs for micro animations
+  const streakScaleAnim = useRef(new Animated.Value(1)).current;
+  const diceJiggleAnim = useRef(new Animated.Value(0)).current;
+  const screenShakeAnim = useRef(new Animated.Value(0)).current;
+  const screenTiltAnim = useRef(new Animated.Value(0)).current;
+  const dimAnim = useRef(new Animated.Value(0)).current;
+  const edgeFlashAnim = useRef(new Animated.Value(0)).current;
 
   const {
     // survival controls
@@ -196,6 +220,148 @@ export default function Survival() {
     };
   }, [startSurvival, stopSurvival]);
 
+  // Reset milestone flags when streak resets or survival restarts
+  useEffect(() => {
+    if (currentStreak === 0) {
+      setHasShown5(false);
+      setHasShown10(false);
+      setHasShown15(false);
+      setHasShownNewLeader(false);
+    }
+  }, [currentStreak]);
+
+  // Micro +1 streak animation (fires on every streak increment)
+  const prevStreakForMicroAnim = useRef(currentStreak);
+  useEffect(() => {
+    if (currentStreak > prevStreakForMicroAnim.current && currentStreak > 0) {
+      // Trigger micro animations
+      
+      // 1. Streak label pop
+      streakScaleAnim.setValue(1);
+      Animated.sequence([
+        Animated.timing(streakScaleAnim, {
+          toValue: 1.2,
+          duration: 100,
+          useNativeDriver: true,
+        }),
+        Animated.spring(streakScaleAnim, {
+          toValue: 1,
+          friction: 5,
+          tension: 100,
+          useNativeDriver: true,
+        }),
+      ]).start();
+
+      // 2. Particle burst
+      setShowParticleBurst(true);
+      setTimeout(() => setShowParticleBurst(false), 350);
+
+      // 3. Dice micro-jiggle
+      diceJiggleAnim.setValue(0);
+      Animated.sequence([
+        Animated.timing(diceJiggleAnim, {
+          toValue: -5,
+          duration: 75,
+          useNativeDriver: true,
+        }),
+        Animated.timing(diceJiggleAnim, {
+          toValue: 0,
+          duration: 75,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    }
+    prevStreakForMicroAnim.current = currentStreak;
+  }, [currentStreak, streakScaleAnim, diceJiggleAnim]);
+
+  // 5-streak milestone
+  useEffect(() => {
+    if (currentStreak === 5 && !hasShown5) {
+      setHasShown5(true);
+      
+      // Screen shake
+      screenShakeAnim.setValue(0);
+      Animated.sequence([
+        Animated.timing(screenShakeAnim, { toValue: 5, duration: 50, useNativeDriver: true }),
+        Animated.timing(screenShakeAnim, { toValue: -5, duration: 50, useNativeDriver: true }),
+        Animated.timing(screenShakeAnim, { toValue: 3, duration: 50, useNativeDriver: true }),
+        Animated.timing(screenShakeAnim, { toValue: 0, duration: 50, useNativeDriver: true }),
+      ]).start();
+
+      // Show celebration overlay
+      setCelebrationTitle('🔥 5 in a row?! Okay RELAX.');
+      setCelebrationMode('5');
+      setCelebrationVisible(true);
+    }
+  }, [currentStreak, hasShown5, screenShakeAnim]);
+
+  // 10-streak milestone
+  useEffect(() => {
+    if (currentStreak === 10 && !hasShown10) {
+      setHasShown10(true);
+      
+      // Screen shake
+      screenShakeAnim.setValue(0);
+      Animated.sequence([
+        Animated.timing(screenShakeAnim, { toValue: 8, duration: 60, useNativeDriver: true }),
+        Animated.timing(screenShakeAnim, { toValue: -8, duration: 60, useNativeDriver: true }),
+        Animated.timing(screenShakeAnim, { toValue: 5, duration: 60, useNativeDriver: true }),
+        Animated.timing(screenShakeAnim, { toValue: 0, duration: 60, useNativeDriver: true }),
+      ]).start();
+
+      // Edge flash (red)
+      edgeFlashAnim.setValue(0);
+      Animated.sequence([
+        Animated.timing(edgeFlashAnim, { toValue: 1, duration: 100, useNativeDriver: true }),
+        Animated.timing(edgeFlashAnim, { toValue: 0, duration: 200, useNativeDriver: true }),
+      ]).start();
+
+      // Show celebration overlay
+      setCelebrationTitle('💥 TEN IN A ROW!! DON\'T CHOKE!!!!');
+      setCelebrationMode('10');
+      setCelebrationVisible(true);
+    }
+  }, [currentStreak, hasShown10, screenShakeAnim, edgeFlashAnim]);
+
+  // 15-streak milestone
+  useEffect(() => {
+    if (currentStreak === 15 && !hasShown15) {
+      setHasShown15(true);
+      
+      // Screen tilt
+      screenTiltAnim.setValue(0);
+      Animated.sequence([
+        Animated.timing(screenTiltAnim, { toValue: -0.03, duration: 150, useNativeDriver: true }),
+        Animated.timing(screenTiltAnim, { toValue: 0.03, duration: 150, useNativeDriver: true }),
+        Animated.spring(screenTiltAnim, { toValue: 0, friction: 8, useNativeDriver: true }),
+      ]).start();
+
+      // Show celebration overlay
+      setCelebrationTitle('👑 FIFTEEN. STREAK. YOU MENACE.');
+      setCelebrationMode('15');
+      setCelebrationVisible(true);
+    }
+  }, [currentStreak, hasShown15, screenTiltAnim]);
+
+  // New Global Leader milestone
+  useEffect(() => {
+    if (currentStreak > globalBest && currentStreak > 0 && !hasShownNewLeader) {
+      setHasShownNewLeader(true);
+      
+      // Screen dim then pop
+      dimAnim.setValue(0);
+      Animated.sequence([
+        Animated.timing(dimAnim, { toValue: 0.5, duration: 200, useNativeDriver: true }),
+        Animated.timing(dimAnim, { toValue: 0, duration: 300, useNativeDriver: true }),
+      ]).start();
+
+      // Show celebration overlay
+      setCelebrationTitle('🏆 NEW LEADER! YOU JUST BROKE THE SURVIVAL RECORD!');
+      setCelebrationMode('newLeader');
+      setCelebrationVisible(true);
+    }
+  }, [currentStreak, globalBest, hasShownNewLeader, dimAnim]);
+
   const narration = (buildBanner?.() || message || '').trim();
   const lastClaimValue = baselineClaim ?? lastClaim ?? null;
 
@@ -303,7 +469,7 @@ export default function Survival() {
                 />
                 <Animated.Text style={[styles.title, { transform: [{ scale: pulseAnim }] }]}>Mode</Animated.Text>
               </View>
-              <Animated.Text style={[styles.scoreLine, { transform: [{ scale: pulseAnim }], color: dynamicScoreColor, opacity: streakFlashAnim }]}>Streak: {currentStreak} | Best: {bestStreak} | Global Best: {globalBest}</Animated.Text>
+              <Animated.Text style={[styles.scoreLine, { transform: [{ scale: pulseAnim }, { scale: streakScaleAnim }], color: dynamicScoreColor, opacity: streakFlashAnim }]}>Streak: {currentStreak} | Best: {bestStreak} | Global Best: {globalBest}</Animated.Text>
               <Text style={styles.subtle}>{claimText}</Text>
               <Text style={styles.status} numberOfLines={2}>
                 {narration || 'Ready to roll.'}
@@ -336,7 +502,22 @@ export default function Survival() {
             </Pressable>
 
             {/* DICE BLOCK */}
-            <View testID="dice-area" style={styles.diceArea}>
+            <Animated.View 
+              testID="dice-area" 
+              style={[
+                styles.diceArea,
+                {
+                  transform: [
+                    { translateY: diceJiggleAnim },
+                    { translateX: screenShakeAnim },
+                    { rotate: screenTiltAnim.interpolate({
+                      inputRange: [-1, 1],
+                      outputRange: ['-1rad', '1rad'],
+                    }) },
+                  ],
+                },
+              ]}
+            >
               <View style={styles.diceRow}>
                 <Dice
                   value={turn === 'player' ? playerHi : cpuHi}
@@ -352,7 +533,7 @@ export default function Survival() {
                   overlayText={diceDisplayMode === 'prompt' ? 'Roll' : undefined}
                 />
               </View>
-            </View>
+            </Animated.View>
 
             {/* ACTION BAR */}
             <View style={styles.controls}>
@@ -466,6 +647,46 @@ export default function Survival() {
         </SafeAreaView>
       </FeltBackground>
       <FireworksOverlay visible={showFireworks} onDone={() => setShowFireworks(false)} />
+      
+      {/* Celebration Overlay */}
+      <StreakCelebrationOverlay
+        visible={celebrationVisible}
+        title={celebrationTitle}
+        mode={celebrationMode}
+        onHide={() => setCelebrationVisible(false)}
+      />
+      
+      {/* Particle Burst */}
+      <ParticleBurst
+        visible={showParticleBurst}
+        particleCount={5}
+        emojis={['🎲', '🔥', '🌶️', '💥', '✨']}
+        distance={25}
+        duration={300}
+      />
+
+      {/* Screen effects overlays */}
+      {/* Dim overlay for new leader */}
+      <Animated.View
+        style={[
+          styles.screenOverlay,
+          { backgroundColor: 'black', opacity: dimAnim },
+        ]}
+        pointerEvents="none"
+      />
+      
+      {/* Red edge flash for 10-streak */}
+      <Animated.View
+        style={[
+          styles.screenOverlay,
+          { 
+            borderWidth: 8,
+            borderColor: '#FF0000',
+            opacity: edgeFlashAnim,
+          },
+        ]}
+        pointerEvents="none"
+      />
     </View>
   );
 }
@@ -691,5 +912,13 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontSize: 14,
     marginVertical: 20,
+  },
+  screenOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 999,
   },
 });
