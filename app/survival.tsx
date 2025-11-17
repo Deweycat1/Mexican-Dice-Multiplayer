@@ -848,6 +848,8 @@ export default function Survival() {
         emojis={['🎲', '🔥', '🌶️', '💥', '✨']}
         distance={25}
         duration={800}
+        centerX="50%"
+        centerY="42%"
       />
 
       {/* Screen effects overlays */}

@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef } from 'react';
-import { Animated, StyleSheet, View } from 'react-native';
+import { Animated, DimensionValue, StyleSheet, View } from 'react-native';
 import { Particle } from './Particle';
 
 type Props = {
@@ -10,6 +10,8 @@ type Props = {
   distance?: number;
   duration?: number;
   particleSize?: number;
+  centerX?: DimensionValue;
+  centerY?: DimensionValue;
 };
 
 type ParticleData = {
@@ -29,6 +31,8 @@ export default function ParticleBurst({
   distance = 25,
   duration = 300,
   particleSize = DICE_SIZE,
+  centerX = '50%',
+  centerY = '50%',
 }: Props) {
   const [animating, setAnimating] = React.useState(false);
 
@@ -84,7 +88,7 @@ export default function ParticleBurst({
   }
 
   return (
-    <View style={styles.container} pointerEvents="none">
+    <View style={[styles.container, { top: centerY, left: centerX }]} pointerEvents="none">
       {particles.map((particle, index) => {
         const translateX = animValues[index].interpolate({
           inputRange: [0, 1],
