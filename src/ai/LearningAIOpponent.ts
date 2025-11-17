@@ -261,11 +261,11 @@ export class LearningAIDiceOpponent {
 
     if (currentClaim == null) {
       let opening = this.canonicalClaimFromRoll(myRoll);
-      // More aggressive opening: always jump if weak, sometimes jump even if not
+      // More aggressive opening: always jump if weak, frequently jump even if not
       if (this.isWeakTruth(opening)) {
         opening = this.pressureJumpAbove(normalizeRoll(4, 3));
-      } else if (Math.random() < 0.3) {
-        // 30% chance to bluff even with good opening
+      } else if (Math.random() < 0.5) {
+        // 50% chance to bluff even with good opening for leverage
         opening = this.pressureJumpAbove(opening);
       }
       this.lastContext = null;
@@ -273,7 +273,11 @@ export class LearningAIDiceOpponent {
     }
 
     const truthful = this.bestTruthfulAbove(currentClaim, myRoll);
-    if (truthful != null && Math.random() < 0.45 + this.truthBias) {
+    
+    // Strategic bluffing: even with truthful options, sometimes bluff for leverage
+    const shouldBluffForLeverage = truthful != null && Math.random() < 0.35;
+    
+    if (truthful != null && !shouldBluffForLeverage && Math.random() < 0.45 + this.truthBias) {
       this.lastContext = null;
       return { type: 'raise', claim: truthful };
     }
@@ -340,7 +344,8 @@ export class LearningAIDiceOpponent {
       }
     }
 
-    const claim = truthful != null && Math.random() < 0.50 + this.truthBias
+    // When bluffing, go bold - pick a pressure claim that jumps higher
+    const claim = truthful != null && Math.random() < 0.40 + this.truthBias
       ? truthful
       : this.pickPressureClaim(currentClaim, true);
 
@@ -471,8 +476,10 @@ export class LearningAIDiceOpponent {
       const profile = this.getProfile('player');
       const callMean = profile.callRate.mean();
       const rand = Math.random();
-      if (callMean > 0.55 && rand < 0.5) step += 1;
-      if (callMean > 0.65 && rand < 0.25) step += 1;
+      // More aggressive stepping for bolder bluffs
+      if (rand < 0.6) step += 1; // 60% chance to jump 2 steps
+      if (callMean > 0.55 && rand < 0.4) step += 1;
+      if (callMean > 0.70 && rand < 0.3) step += 1;
     }
     let claim: number | null = currentClaim;
     for (let i = 0; i < step; i += 1) {
