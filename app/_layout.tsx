@@ -39,16 +39,14 @@ export default function RootLayout() {
           async
           src="https://www.googletagmanager.com/gtag/js?id=G-27D1DYN90F"
         />
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `
-              window.dataLayer = window.dataLayer || [];
-              function gtag(){dataLayer.push(arguments);}
-              gtag('js', new Date());
-              gtag('config', 'G-27D1DYN90F');
-            `,
-          }}
-        />
+        <script>
+          {`
+            window.dataLayer = window.dataLayer || [];
+            function gtag(){dataLayer.push(arguments);}
+            gtag('js', new Date());
+            gtag('config', 'G-27D1DYN90F');
+          `}
+        </script>
       </Head>
 
       <Stack
