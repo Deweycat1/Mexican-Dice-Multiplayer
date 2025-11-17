@@ -39,9 +39,9 @@ export default function DialogBanner({ speaker, text }: DialogBannerProps) {
 const styles = StyleSheet.create({
   dialogContainer: {
     position: 'absolute',
-    top: 70,
-    left: 18,
-    right: 18,
+    top: 30,
+    left: 33,
+    right: 33,
     flexDirection: 'row',
     paddingHorizontal: 14,
     paddingVertical: 8,
