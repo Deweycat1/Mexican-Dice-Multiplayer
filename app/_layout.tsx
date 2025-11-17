@@ -4,6 +4,7 @@ import React, { useEffect } from 'react';
 import { Platform } from 'react-native';
 import 'react-native-gesture-handler';
 import 'react-native-reanimated';
+import { Analytics } from '@vercel/analytics/react';
 
 export default function RootLayout() {
   // Ensure web root/background fills viewport and uses the canonical dark green
@@ -30,12 +31,15 @@ export default function RootLayout() {
   }, []);
 
   return (
-    <Stack
-      screenOptions={{
-        headerStyle: { backgroundColor: '#0B3A26' },
-        headerTintColor: '#fff',
-        contentStyle: { backgroundColor: '#0B3A26' },
-      }}
-    />
+    <>
+      <Stack
+        screenOptions={{
+          headerStyle: { backgroundColor: '#0B3A26' },
+          headerTintColor: '#fff',
+          contentStyle: { backgroundColor: '#0B3A26' },
+        }}
+      />
+      {Platform.OS === 'web' && <Analytics />}
+    </>
   );
 }
