@@ -587,7 +587,7 @@ export default function Survival() {
     return 'values';
   }, [isRivalClaimPhase, turn, lastPlayerRoll]);
 
-  const claimOptions = useMemo(() => buildClaimOptions(lastClaimValue, lastPlayerRoll), [lastClaimValue, lastPlayerRoll]);
+  const claimOptions = useMemo(() => buildClaimOptions(lastClaim, lastPlayerRoll), [lastClaim, lastPlayerRoll]);
 
   useEffect(() => setClaimPickerOpen(false), [turn]);
 
