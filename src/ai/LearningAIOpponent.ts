@@ -134,21 +134,27 @@ const inverseErf = (x: number) => {
 };
 
 class OpponentProfile {
-  bluffRate: Record<string, BetaTracker>;
+  bluffRate: Record<ClaimCategory, BetaTracker>;
 
   callRate: BetaTracker;
 
   smallRaisePref: BetaTracker;
 
+  mexicanClaimCount: number;
+
+  totalClaimCount: number;
+
   constructor() {
     this.bluffRate = {
-      mexican: new BetaTracker(1, 3),
+      mexican: new BetaTracker(1, 4),  // Start VERY skeptical of Mexican claims
       double: new BetaTracker(1, 2),
       normal: new BetaTracker(1, 1),
       special: new BetaTracker(1, 1),
     };
     this.callRate = new BetaTracker(1, 2);
     this.smallRaisePref = new BetaTracker(1, 1);
+    this.mexicanClaimCount = 0;
+    this.totalClaimCount = 0;
   }
 }
 
@@ -272,6 +278,20 @@ export class LearningAIDiceOpponent {
       return { type: 'raise', claim: opening };
     }
 
+    const profile = this.getProfile(opponentId);
+    const category = this.categorizeClaimFn!(currentClaim);
+    
+    // Track Mexican claim frequency
+    if (category === 'mexican') {
+      profile.mexicanClaimCount++;
+    }
+    profile.totalClaimCount++;
+    
+    // If player claims Mexican too frequently (more than 1 in 20 claims, when true odds are 1/36)
+    // become MUCH more suspicious
+    const mexicanFrequency = profile.mexicanClaimCount / Math.max(profile.totalClaimCount, 1);
+    const suspicionBoost = mexicanFrequency > 0.08 ? 0.4 : (mexicanFrequency > 0.05 ? 0.2 : 0);
+
     const truthful = this.bestTruthfulAbove(currentClaim, myRoll);
     
     // Strategic bluffing: even with truthful options, sometimes bluff for leverage
@@ -282,8 +302,6 @@ export class LearningAIDiceOpponent {
       return { type: 'raise', claim: truthful };
     }
 
-    const profile = this.getProfile(opponentId);
-    const category = this.categorizeClaimFn!(currentClaim);
     const catBluffMean = (profile.bluffRate[category] ?? new BetaTracker(1, 1)).mean();
     const pCallMean = profile.callRate.mean();
     const dist = this.distanceFromTruth(currentClaim, myRoll);
@@ -316,26 +334,29 @@ export class LearningAIDiceOpponent {
       const pBluffSample = (profile.bluffRate[category] ?? new BetaTracker(1, 1)).mean();
       const evCall = (2 * pBluffSample - 1) - this.callRiskBias;
       
-      // Dynamic threshold: highly aggressive on all claims
-      let threshold = -0.30;
+      // Dynamic threshold: MUCH more aggressive on suspicious claims
+      let threshold = -0.45;
       if (category === 'mexican') {
-        // Mexican (21) - extremely suspicious, very aggressive
-        threshold = 0.0;
+        // Mexican (21) - EXTREMELY suspicious, call almost always
+        // Only 1/36 chance to roll, so be very aggressive
+        threshold = 0.35 + suspicionBoost;  // Even more aggressive if claiming too often
       } else if (category === 'double') {
-        // All doubles are harder to roll (only 1/36 chance each), skeptical on all
+        // All doubles are hard to roll (only 1/36 chance each)
         if (currentClaim >= 66) {
-          threshold = -0.05;
+          threshold = 0.25;  // Very aggressive on 66
         } else if (currentClaim >= 55) {
-          threshold = -0.10;
+          threshold = 0.20;  // Aggressive on 55
         } else if (currentClaim >= 44) {
-          threshold = -0.18;
+          threshold = 0.10;  // Skeptical on 44
         } else if (currentClaim >= 33) {
-          // Even lower doubles (33, 22) get scrutinized
-          threshold = -0.23;
+          threshold = 0.05;  // Even 33 and 22 are suspicious
         }
       } else if (category === 'normal' && currentClaim >= 64) {
-        // High normal pairs (64-65) also suspicious
-        threshold = -0.20;
+        // High normal pairs (64-65) also very suspicious
+        threshold = 0.15;
+      } else if (category === 'special') {
+        // 31 reverses should be treated skeptically too
+        threshold = 0.10;
       }
       
       if (evCall >= threshold) {
@@ -418,12 +439,14 @@ export class LearningAIDiceOpponent {
     Object.entries(state.profiles ?? {}).forEach(([opponentId, data]) => {
       const profile = new OpponentProfile();
       Object.entries(data.bluffRate ?? {}).forEach(([cat, [alpha, beta]]) => {
-        profile.bluffRate[cat] = new BetaTracker(alpha, beta);
+        profile.bluffRate[cat as ClaimCategory] = new BetaTracker(alpha, beta);
       });
       const [callAlpha, callBeta] = data.callRate ?? [1, 1];
       profile.callRate = new BetaTracker(callAlpha, callBeta);
       const [smallAlpha, smallBeta] = data.smallRaisePref ?? [1, 1];
       profile.smallRaisePref = new BetaTracker(smallAlpha, smallBeta);
+      profile.mexicanClaimCount = 0;
+      profile.totalClaimCount = 0;
       this.profiles.set(opponentId, profile);
     });
   }
