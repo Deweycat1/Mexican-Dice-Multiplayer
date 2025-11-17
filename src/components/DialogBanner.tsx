@@ -1,5 +1,5 @@
 import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Image, StyleSheet, Text, View } from 'react-native';
 
 type Speaker = 'user' | 'rival';
 
@@ -17,9 +17,14 @@ export default function DialogBanner({ speaker, text }: DialogBannerProps) {
   return (
     <View style={containerStyle}>
       <View style={styles.dialogSpeaker}>
-        <Text style={styles.dialogSpeakerEmoji}>
-          {speaker === 'user' ? '😇' : '👹'}
-        </Text>
+        {speaker === 'user' ? (
+          <Text style={styles.dialogSpeakerEmoji}>😇</Text>
+        ) : (
+          <Image
+            source={require('../../assets/images/Rival.png')}
+            style={styles.dialogSpeakerImage}
+          />
+        )}
       </View>
 
       <View style={styles.dialogTextWrapper}>
@@ -63,6 +68,10 @@ const styles = StyleSheet.create({
   },
   dialogSpeakerEmoji: {
     fontSize: 22,
+  },
+  dialogSpeakerImage: {
+    width: 22,
+    height: 22,
   },
   dialogTextWrapper: {
     flex: 1,
