@@ -567,7 +567,7 @@ export default function Survival() {
     const rollPart = formatRoll(lastPlayerRoll);
     return (
       <>
-        Current claim: {renderClaim(lastClaimValue)} | Your roll: {rollPart}
+        Current claim: {renderClaim(lastClaimValue)} Your roll: {rollPart}
       </>
     );
   }, [lastClaimValue, lastPlayerRoll]);
