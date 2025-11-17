@@ -154,7 +154,8 @@ export default function Game() {
 
   // Trigger score loss animation when scores decrease
   useEffect(() => {
-    if (playerScore < prevPlayerScore.current) {
+    const prevScore = prevPlayerScore.current;
+    if (playerScore < prevScore) {
       // Player lost points - trigger animation
       userScoreAnim.setValue(0);
       Animated.sequence([
@@ -174,7 +175,8 @@ export default function Game() {
   }, [playerScore, userScoreAnim]);
 
   useEffect(() => {
-    if (cpuScore < prevCpuScore.current) {
+    const prevScore = prevCpuScore.current;
+    if (cpuScore < prevScore) {
       // Rival lost points - trigger animation
       rivalScoreAnim.setValue(0);
       Animated.sequence([
@@ -214,22 +216,24 @@ export default function Game() {
         }).start(() => {
           setDialogVisible(false);
         });
-      }, 3500);
+      }, 2000);
     });
   }, [dialogAnim]);
 
   // Trigger dialog on score changes
   useEffect(() => {
-    if (playerScore < prevPlayerScore.current && prevPlayerScore.current <= 5) {
-      // Player lost points - rival speaks (but not during initial game setup)
+    const prevScore = prevPlayerScore.current;
+    if (playerScore < prevScore && prevScore > 0 && playerScore >= 0) {
+      // Player lost points - rival speaks
       const line = pickRandomLine(rivalPointWinLines);
       showDialog('rival', line);
     }
   }, [playerScore, showDialog]);
 
   useEffect(() => {
-    if (cpuScore < prevCpuScore.current && prevCpuScore.current <= 5) {
-      // Rival lost points - user speaks (but not during initial game setup)
+    const prevScore = prevCpuScore.current;
+    if (cpuScore < prevScore && prevScore > 0 && cpuScore >= 0) {
+      // Rival lost points - user speaks
       const line = pickRandomLine(userPointWinLines);
       showDialog('user', line);
     }
