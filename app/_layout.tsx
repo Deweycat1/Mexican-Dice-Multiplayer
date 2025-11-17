@@ -1,6 +1,7 @@
 // app/_layout.tsx
 import { Analytics } from '@vercel/analytics/react';
 import { Stack } from 'expo-router';
+import Head from 'expo-router/head';
 import React, { useEffect } from 'react';
 import { Platform } from 'react-native';
 import 'react-native-gesture-handler';
@@ -32,6 +33,24 @@ export default function RootLayout() {
 
   return (
     <>
+      <Head>
+        {/* Google tag (gtag.js) */}
+        <script
+          async
+          src="https://www.googletagmanager.com/gtag/js?id=G-27D1DYN90F"
+        />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              window.dataLayer = window.dataLayer || [];
+              function gtag(){dataLayer.push(arguments);}
+              gtag('js', new Date());
+              gtag('config', 'G-27D1DYN90F');
+            `,
+          }}
+        />
+      </Head>
+
       <Stack
         screenOptions={{
           headerStyle: { backgroundColor: '#0B3A26' },
