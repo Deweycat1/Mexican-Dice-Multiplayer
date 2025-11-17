@@ -2,14 +2,14 @@ import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
-    Animated,
-    Image,
-    Modal,
-    Pressable,
-    SafeAreaView,
-    StyleSheet,
-    Text,
-    View,
+  Animated,
+  Image,
+  Modal,
+  Pressable,
+  SafeAreaView,
+  StyleSheet,
+  Text,
+  View,
 } from 'react-native';
 
 import BluffModal from '../src/components/BluffModal';
@@ -946,7 +946,7 @@ export default function Survival() {
 const BAR_BG = '#115E38';
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#0B3A26' },
+  root: { flex: 1 },
   safe: { flex: 1 },
   content: {
     flex: 1,
@@ -1020,6 +1020,8 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     paddingHorizontal: 14,
     marginTop: -150,
+    position: 'relative',
+    zIndex: 10,
   },
   actionRow: {
     flexDirection: 'row',

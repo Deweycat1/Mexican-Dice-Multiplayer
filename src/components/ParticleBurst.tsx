@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef } from 'react';
-import { Animated, StyleSheet, Text, View } from 'react-native';
+import { Animated, StyleSheet, View } from 'react-native';
+import { Particle } from './Particle';
 
 type Props = {
   visible: boolean;
@@ -8,15 +9,17 @@ type Props = {
   emojis?: string[];
   distance?: number;
   duration?: number;
+  particleSize?: number;
 };
 
-type Particle = {
+type ParticleData = {
   emoji: string;
   angle: number;
   distance: number;
 };
 
 const DEFAULT_EMOJIS = ['🎲', '🔥', '🌶️', '💥', '✨'];
+const DICE_SIZE = 100; // Match dice component default size
 
 export default function ParticleBurst({
   visible,
@@ -25,10 +28,11 @@ export default function ParticleBurst({
   emojis = DEFAULT_EMOJIS,
   distance = 25,
   duration = 300,
+  particleSize = DICE_SIZE,
 }: Props) {
   const [animating, setAnimating] = React.useState(false);
 
-  const particles = useMemo<Particle[]>(() => {
+  const particles = useMemo<ParticleData[]>(() => {
     return Array.from({ length: particleCount }).map((_, index) => {
       const angle = (Math.PI * 2 * index) / particleCount + Math.random() * 0.3;
       return {
@@ -92,18 +96,18 @@ export default function ParticleBurst({
         });
 
         return (
-          <Animated.View
+          <Particle
             key={index}
-            style={[
+            emoji={particle.emoji}
+            size={particleSize}
+            animatedStyle={[
               styles.particle,
               {
                 opacity: opacityValues[index],
                 transform: [{ translateX }, { translateY }],
               },
             ]}
-          >
-            <Text style={styles.emoji}>{particle.emoji}</Text>
-          </Animated.View>
+          />
         );
       })}
     </View>
@@ -121,10 +125,5 @@ const styles = StyleSheet.create({
   },
   particle: {
     position: 'absolute',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  emoji: {
-    fontSize: 20,
   },
 });

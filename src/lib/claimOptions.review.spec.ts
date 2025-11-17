@@ -1,5 +1,5 @@
-import { buildClaimOptions } from './claimOptions';
 import { compareClaims, meetsOrBeats } from '../engine/mexican';
+import { buildClaimOptions } from './claimOptions';
 
 describe('buildClaimOptions - comprehensive review', () => {
   describe('Basic filtering', () => {
