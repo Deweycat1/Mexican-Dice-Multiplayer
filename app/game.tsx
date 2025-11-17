@@ -616,8 +616,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   logoImage: {
-    width: 148,
-    height: 148,
+    width: 60,
+    height: 60,
   },
   subtle: {
     color: '#E0B50C',
