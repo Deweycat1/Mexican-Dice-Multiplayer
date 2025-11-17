@@ -20,17 +20,11 @@ export default function DialogBanner({ speaker, text }: DialogBannerProps) {
         <Text style={styles.dialogSpeakerEmoji}>
           {speaker === 'user' ? '😇' : '👹'}
         </Text>
-        <Text style={[
-          styles.dialogSpeakerName,
-          speaker === 'user' ? styles.userSpeaker : styles.rivalSpeaker
-        ]}>
-          {speaker === 'user' ? 'You' : 'The Rival'}
-        </Text>
       </View>
 
       <View style={styles.dialogTextWrapper}>
         <Text
-          numberOfLines={2}
+          numberOfLines={3}
           ellipsizeMode="tail"
           style={styles.dialogText}
         >
@@ -65,22 +59,10 @@ const styles = StyleSheet.create({
   dialogSpeaker: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginRight: 12,
-    minWidth: 80,
+    marginRight: 10,
   },
   dialogSpeakerEmoji: {
     fontSize: 22,
-    marginRight: 6,
-  },
-  dialogSpeakerName: {
-    fontWeight: '800',
-    fontSize: 13,
-  },
-  userSpeaker: {
-    color: '#6BFF89',
-  },
-  rivalSpeaker: {
-    color: '#FF6B6B',
   },
   dialogTextWrapper: {
     flex: 1,
