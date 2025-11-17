@@ -51,6 +51,7 @@ export default function Survival() {
   const {
     // survival controls
     lastClaim,
+    baselineClaim,
     turn,
     lastPlayerRoll,
     lastCpuRoll,
@@ -196,7 +197,7 @@ export default function Survival() {
   }, [startSurvival, stopSurvival]);
 
   const narration = (buildBanner?.() || message || '').trim();
-  const lastClaimValue = lastClaim ?? null;
+  const lastClaimValue = baselineClaim ?? lastClaim ?? null;
 
   const claimText = useMemo(() => {
     const claimPart = formatClaim(lastClaimValue);

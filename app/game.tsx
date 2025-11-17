@@ -55,6 +55,7 @@ export default function Game() {
     playerScore,
     cpuScore,
     lastClaim,
+    baselineClaim,
     turn,
     lastPlayerRoll,
     lastCpuRoll,
@@ -74,7 +75,7 @@ export default function Game() {
   } = useGameStore();
 
   const narration = (buildBanner?.() || message || '').trim();
-  const lastClaimValue = lastClaim ?? null;
+  const lastClaimValue = baselineClaim ?? lastClaim ?? null;
 
   const claimText = useMemo(() => {
     const claimPart = formatClaim(lastClaimValue);
