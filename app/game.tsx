@@ -364,14 +364,9 @@ export default function Game() {
                   </Animated.View>
                 </View>
 
-                {/* Title Column */}
+                {/* Title Column - Now shows current claim */}
                 <View style={styles.titleColumn}>
-                  <View style={styles.titleRow}>
-                    <Image
-                      source={require('../assets/images/mexican-dice-logo.png')}
-                      style={styles.logoImage}
-                    />
-                  </View>
+                  <Text style={styles.subtle}>{claimText}</Text>
                 </View>
 
                 {/* Rival Column */}
@@ -395,7 +390,6 @@ export default function Game() {
               </View>
 
               {/* Status text below */}
-              <Text style={styles.subtle}>{claimText}</Text>
               <Text style={styles.status} numberOfLines={2}>
                 {narration || 'Ready to roll.'}
               </Text>
