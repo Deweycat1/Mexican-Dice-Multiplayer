@@ -738,11 +738,6 @@ export default function Survival() {
                   disabled={controlsDisabled || hasRolled}
                 />
               </View>
-              {hasRolled && !rolledCanClaim && !controlsDisabled && (
-                <Text style={styles.rollHelper}>
-                  Your roll doesn’t beat the current claim. Choose a bluff — 21 and 31 are always available.
-                </Text>
-              )}
 
               <View style={styles.bottomRow}>
                 <StyledButton

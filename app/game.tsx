@@ -386,11 +386,6 @@ export default function Game() {
               {showCpuThinking && (
                 <Text style={styles.subtleSmall}>The Rival thinking…</Text>
               )}
-              {hasRolled && !rolledCanClaim && !controlsDisabled && (
-                <Text style={styles.rollHelper}>
-                  Your roll doesn&apos;t beat the current claim. Choose a bluff — 21 and 31 are always available.
-                </Text>
-              )}
             </View>
 
             {/* HISTORY BOX - shows last two claims/events */}
