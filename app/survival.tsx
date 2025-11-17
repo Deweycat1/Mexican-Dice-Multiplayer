@@ -913,6 +913,10 @@ export default function Survival() {
           styles.screenOverlay,
           {
             transform: [{ translateX: electricJoltAnim }],
+            opacity: electricJoltAnim.interpolate({
+              inputRange: [-10, 0, 10],
+              outputRange: [0.25, 0, 0.25],
+            }),
           },
         ]}
         pointerEvents="none"
@@ -922,7 +926,6 @@ export default function Survival() {
             styles.screenOverlay,
             {
               backgroundColor: '#00FFFF',
-              opacity: 0.2,
             },
           ]}
         />
@@ -946,7 +949,7 @@ export default function Survival() {
 const BAR_BG = '#115E38';
 
 const styles = StyleSheet.create({
-  root: { flex: 1 },
+  root: { flex: 1, backgroundColor: '#0B3A26' },
   safe: { flex: 1 },
   content: {
     flex: 1,
