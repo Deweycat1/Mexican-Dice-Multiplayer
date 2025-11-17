@@ -2,7 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import { Animated, Easing, StyleSheet, Text, View } from 'react-native';
 import FireworksOverlay from './FireworksOverlay';
 
-type MilestoneMode = '5' | '10' | '15' | 'newLeader';
+type MilestoneMode = '5' | '10' | '15' | 'newLeader' | '20' | '25' | '30' | '35' | '40';
 
 type Props = {
   visible: boolean;
@@ -29,6 +29,36 @@ const MILESTONE_CONFIG = {
     color: '#FFD700',
     showFireworks: false,
     showConfetti: false,
+  },
+  '20': {
+    duration: 1800,
+    color: '#FFD700',
+    showFireworks: false,
+    showConfetti: false,
+  },
+  '25': {
+    duration: 1800,
+    color: '#FF6600',
+    showFireworks: false,
+    showConfetti: false,
+  },
+  '30': {
+    duration: 1800,
+    color: '#FF0000',
+    showFireworks: false,
+    showConfetti: false,
+  },
+  '35': {
+    duration: 1800,
+    color: '#00FFFF',
+    showFireworks: false,
+    showConfetti: false,
+  },
+  '40': {
+    duration: 2000,
+    color: '#8B00FF',
+    showFireworks: false,
+    showConfetti: true,
   },
   newLeader: {
     duration: 2000,

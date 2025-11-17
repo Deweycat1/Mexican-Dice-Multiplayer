@@ -55,12 +55,17 @@ export default function Survival() {
   const [hasShown5, setHasShown5] = useState(false);
   const [hasShown10, setHasShown10] = useState(false);
   const [hasShown15, setHasShown15] = useState(false);
+  const [hasShown20, setHasShown20] = useState(false);
+  const [hasShown25, setHasShown25] = useState(false);
+  const [hasShown30, setHasShown30] = useState(false);
+  const [hasShown35, setHasShown35] = useState(false);
+  const [hasShown40, setHasShown40] = useState(false);
   const [hasShownNewLeader, setHasShownNewLeader] = useState(false);
 
   // Celebration overlay state
   const [celebrationVisible, setCelebrationVisible] = useState(false);
   const [celebrationTitle, setCelebrationTitle] = useState('');
-  const [celebrationMode, setCelebrationMode] = useState<'5' | '10' | '15' | 'newLeader'>('5');
+  const [celebrationMode, setCelebrationMode] = useState<'5' | '10' | '15' | '20' | '25' | '30' | '35' | '40' | 'newLeader'>('5');
 
   // Streak end popup state
   const [streakEndPopupVisible, setStreakEndPopupVisible] = useState(false);
@@ -75,6 +80,13 @@ export default function Survival() {
   const screenTiltAnim = useRef(new Animated.Value(0)).current;
   const dimAnim = useRef(new Animated.Value(0)).current;
   const edgeFlashAnim = useRef(new Animated.Value(0)).current;
+  
+  // New milestone animation refs
+  const goldPulseAnim = useRef(new Animated.Value(0)).current;
+  const fieryFlashAnim = useRef(new Animated.Value(0)).current;
+  const alarmFlashAnim = useRef(new Animated.Value(0)).current;
+  const electricJoltAnim = useRef(new Animated.Value(0)).current;
+  const vortexPulseAnim = useRef(new Animated.Value(0)).current;
 
   const {
     // survival controls
@@ -237,6 +249,11 @@ export default function Survival() {
       setHasShown5(false);
       setHasShown10(false);
       setHasShown15(false);
+      setHasShown20(false);
+      setHasShown25(false);
+      setHasShown30(false);
+      setHasShown35(false);
+      setHasShown40(false);
       setHasShownNewLeader(false);
     }
     
@@ -355,6 +372,146 @@ export default function Survival() {
       setCelebrationVisible(true);
     }
   }, [currentStreak, hasShown15, screenTiltAnim]);
+
+  // 20-streak milestone (Gold pulse aura)
+  useEffect(() => {
+    if (currentStreak === 20 && !hasShown20) {
+      setHasShown20(true);
+      
+      // Gold pulse aura
+      goldPulseAnim.setValue(0);
+      Animated.sequence([
+        Animated.timing(goldPulseAnim, { toValue: 1, duration: 300, useNativeDriver: true }),
+        Animated.timing(goldPulseAnim, { toValue: 0, duration: 500, useNativeDriver: true }),
+      ]).start();
+
+      // Heavy dice wiggle
+      diceJiggleAnim.setValue(0);
+      Animated.sequence([
+        Animated.timing(diceJiggleAnim, { toValue: -8, duration: 80, useNativeDriver: true }),
+        Animated.timing(diceJiggleAnim, { toValue: 8, duration: 80, useNativeDriver: true }),
+        Animated.timing(diceJiggleAnim, { toValue: 0, duration: 100, useNativeDriver: true }),
+      ]).start();
+
+      // Show celebration overlay
+      setCelebrationTitle('⭐ TWENTY?! You\'re entering myth territory.');
+      setCelebrationMode('20');
+      setCelebrationVisible(true);
+    }
+  }, [currentStreak, hasShown20, goldPulseAnim, diceJiggleAnim]);
+
+  // 25-streak milestone (Fiery edge flash)
+  useEffect(() => {
+    if (currentStreak === 25 && !hasShown25) {
+      setHasShown25(true);
+      
+      // Fiery edge flash (orange/red)
+      fieryFlashAnim.setValue(0);
+      Animated.sequence([
+        Animated.timing(fieryFlashAnim, { toValue: 1, duration: 150, useNativeDriver: true }),
+        Animated.timing(fieryFlashAnim, { toValue: 0, duration: 300, useNativeDriver: true }),
+      ]).start();
+
+      // Heavy dice bounce
+      diceJiggleAnim.setValue(0);
+      Animated.sequence([
+        Animated.timing(diceJiggleAnim, { toValue: -10, duration: 100, useNativeDriver: true }),
+        Animated.timing(diceJiggleAnim, { toValue: 0, duration: 150, useNativeDriver: true }),
+      ]).start();
+
+      // Show celebration overlay
+      setCelebrationTitle('🔥 TWENTY-FIVE! This is statistically irresponsible.');
+      setCelebrationMode('25');
+      setCelebrationVisible(true);
+    }
+  }, [currentStreak, hasShown25, fieryFlashAnim, diceJiggleAnim]);
+
+  // 30-streak milestone (Alarm flash + siren pulse)
+  useEffect(() => {
+    if (currentStreak === 30 && !hasShown30) {
+      setHasShown30(true);
+      
+      // Alarm-style red flash with siren pulse
+      alarmFlashAnim.setValue(0);
+      const sirenPulse = Animated.loop(
+        Animated.sequence([
+          Animated.timing(alarmFlashAnim, { toValue: 1, duration: 120, useNativeDriver: true }),
+          Animated.timing(alarmFlashAnim, { toValue: 0, duration: 120, useNativeDriver: true }),
+        ])
+      );
+      sirenPulse.start();
+      setTimeout(() => sirenPulse.stop(), 800);
+
+      // Heavy screen shake
+      screenShakeAnim.setValue(0);
+      Animated.sequence([
+        Animated.timing(screenShakeAnim, { toValue: 10, duration: 60, useNativeDriver: true }),
+        Animated.timing(screenShakeAnim, { toValue: -10, duration: 60, useNativeDriver: true }),
+        Animated.timing(screenShakeAnim, { toValue: 5, duration: 60, useNativeDriver: true }),
+        Animated.timing(screenShakeAnim, { toValue: 0, duration: 60, useNativeDriver: true }),
+      ]).start();
+
+      // Show celebration overlay
+      setCelebrationTitle('🚨 THIRTY. HOW ARE YOU STILL ALIVE?');
+      setCelebrationMode('30');
+      setCelebrationVisible(true);
+    }
+  }, [currentStreak, hasShown30, alarmFlashAnim, screenShakeAnim]);
+
+  // 35-streak milestone (Electric jolt)
+  useEffect(() => {
+    if (currentStreak === 35 && !hasShown35) {
+      setHasShown35(true);
+      
+      // Electric jolt/jitter effect
+      electricJoltAnim.setValue(0);
+      const jitterSequence = [];
+      for (let i = 0; i < 8; i += 1) {
+        jitterSequence.push(
+          Animated.timing(electricJoltAnim, {
+            toValue: (i % 2 === 0 ? 1 : -1) * (3 - i * 0.3),
+            duration: 40,
+            useNativeDriver: true,
+          })
+        );
+      }
+      jitterSequence.push(
+        Animated.timing(electricJoltAnim, { toValue: 0, duration: 40, useNativeDriver: true })
+      );
+      Animated.sequence(jitterSequence).start();
+
+      // Show celebration overlay
+      setCelebrationTitle('⚡ THIRTY-FIVE! This run is illegal in several countries.');
+      setCelebrationMode('35');
+      setCelebrationVisible(true);
+    }
+  }, [currentStreak, hasShown35, electricJoltAnim]);
+
+  // 40-streak milestone (Dark vortex pulse + slow-mo)
+  useEffect(() => {
+    if (currentStreak === 40 && !hasShown40) {
+      setHasShown40(true);
+      
+      // Dark vortex pulse
+      vortexPulseAnim.setValue(0);
+      Animated.sequence([
+        Animated.timing(vortexPulseAnim, { toValue: 0.7, duration: 400, useNativeDriver: true }),
+        Animated.timing(vortexPulseAnim, { toValue: 0, duration: 600, useNativeDriver: true }),
+      ]).start();
+
+      // Slight slow-motion effect on dice (longer jiggle)
+      diceJiggleAnim.setValue(0);
+      Animated.sequence([
+        Animated.timing(diceJiggleAnim, { toValue: -12, duration: 200, useNativeDriver: true }),
+        Animated.timing(diceJiggleAnim, { toValue: 0, duration: 300, useNativeDriver: true }),
+      ]).start();
+
+      // Show celebration overlay
+      setCelebrationTitle('🐉 FORTY. YOU HAVE AWAKENED SOMETHING ANCIENT.');
+      setCelebrationMode('40');
+      setCelebrationVisible(true);
+    }
+  }, [currentStreak, hasShown40, vortexPulseAnim, diceJiggleAnim]);
 
   // New Global Leader milestone
   useEffect(() => {
@@ -702,6 +859,82 @@ export default function Survival() {
             borderWidth: 8,
             borderColor: '#FF0000',
             opacity: edgeFlashAnim,
+          },
+        ]}
+        pointerEvents="none"
+      />
+
+      {/* Gold pulse aura for 20-streak */}
+      <Animated.View
+        style={[
+          styles.screenOverlay,
+          {
+            backgroundColor: '#FFD700',
+            opacity: goldPulseAnim.interpolate({
+              inputRange: [0, 1],
+              outputRange: [0, 0.3],
+            }),
+          },
+        ]}
+        pointerEvents="none"
+      />
+
+      {/* Fiery flash for 25-streak */}
+      <Animated.View
+        style={[
+          styles.screenOverlay,
+          {
+            borderWidth: 12,
+            borderColor: '#FF6600',
+            opacity: fieryFlashAnim,
+          },
+        ]}
+        pointerEvents="none"
+      />
+
+      {/* Alarm flash for 30-streak */}
+      <Animated.View
+        style={[
+          styles.screenOverlay,
+          {
+            backgroundColor: '#FF0000',
+            opacity: alarmFlashAnim.interpolate({
+              inputRange: [0, 1],
+              outputRange: [0, 0.4],
+            }),
+          },
+        ]}
+        pointerEvents="none"
+      />
+
+      {/* Electric jolt overlay for 35-streak */}
+      <Animated.View
+        style={[
+          styles.screenOverlay,
+          {
+            transform: [{ translateX: electricJoltAnim }],
+          },
+        ]}
+        pointerEvents="none"
+      >
+        <Animated.View
+          style={[
+            styles.screenOverlay,
+            {
+              backgroundColor: '#00FFFF',
+              opacity: 0.2,
+            },
+          ]}
+        />
+      </Animated.View>
+
+      {/* Dark vortex pulse for 40-streak */}
+      <Animated.View
+        style={[
+          styles.screenOverlay,
+          {
+            backgroundColor: '#000000',
+            opacity: vortexPulseAnim,
           },
         ]}
         pointerEvents="none"
