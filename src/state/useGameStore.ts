@@ -580,7 +580,7 @@ export const useGameStore = create<Store>((set, get) => {
       const state = get();
       if (state.gameOver || state.turn !== 'cpu') return;
 
-  const { lastClaim } = state;
+  const { lastClaim, baselineClaim } = state;
       const previousClaim = lastClaim ?? null;
       const roll = rollDice();
       const dicePair: DicePair = roll.values;
@@ -606,7 +606,9 @@ export const useGameStore = create<Store>((set, get) => {
         return;
       }
 
-      const action = aiOpponent.decideAction('player', lastClaim ?? null, dicePair, roundIndexCounter);
+      // Use baselineClaim for AI decisions (preserves original claim through reverses)
+      const claimForAI = baselineClaim ?? lastClaim ?? null;
+      const action = aiOpponent.decideAction('player', claimForAI, dicePair, roundIndexCounter);
 
       if (action.type === 'call_bluff') {
         pendingCpuRaise = null;
