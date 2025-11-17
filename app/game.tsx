@@ -351,12 +351,10 @@ export default function Game() {
                 {/* Title Column */}
                 <View style={styles.titleColumn}>
                   <View style={styles.titleRow}>
-                    <Text style={styles.title}>Mexican</Text>
                     <Image
                       source={require('../assets/images/mexican-dice-logo.png')}
                       style={styles.logoImage}
                     />
-                    <Text style={styles.title}>Dice</Text>
                   </View>
                 </View>
 
@@ -618,9 +616,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   logoImage: {
-    width: 28,
-    height: 28,
-    marginHorizontal: 6,
+    width: 48,
+    height: 48,
   },
   subtle: {
     color: '#E0B50C',
