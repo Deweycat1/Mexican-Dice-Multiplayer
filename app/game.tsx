@@ -372,7 +372,10 @@ export default function Game() {
                 {/* Rival Column */}
                 <View style={styles.playerColumn}>
                   <View style={styles.avatarCircle}>
-                    <Text style={styles.avatarEmoji}>👹</Text>
+                    <Image
+                      source={require('../assets/images/Rival.png')}
+                      style={styles.avatarImage}
+                    />
                   </View>
                   <Animated.View
                     style={{
@@ -600,6 +603,10 @@ const styles = StyleSheet.create({
   },
   avatarEmoji: {
     fontSize: 32,
+  },
+  avatarImage: {
+    width: 32,
+    height: 32,
   },
   playerScoreLabel: {
     color: '#FFFFFF',
