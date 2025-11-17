@@ -401,10 +401,17 @@ export default function SecretStatsScreen() {
               </Text>
             </View>
             <View style={styles.statRow}>
-              <Text style={styles.statLabel}>Last Updated</Text>
+              <Text style={styles.statLabel}>Record Date & Time</Text>
               <Text style={styles.statCountSmall}>
                 {survivalBest?.updatedAt
-                  ? new Date(survivalBest.updatedAt).toLocaleString()
+                  ? new Date(survivalBest.updatedAt).toLocaleString('en-US', {
+                      month: 'short',
+                      day: 'numeric',
+                      year: 'numeric',
+                      hour: 'numeric',
+                      minute: '2-digit',
+                      hour12: true
+                    })
                   : '—'}
               </Text>
             </View>
