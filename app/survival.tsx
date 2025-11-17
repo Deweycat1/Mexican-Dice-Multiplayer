@@ -3,6 +3,7 @@ import { useRouter } from 'expo-router';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
     Animated,
+    Dimensions,
     Image,
     Modal,
     Pressable,
@@ -46,6 +47,11 @@ function facesFromRoll(value: number | null | undefined): readonly [number | nul
 
 export default function Survival() {
   const router = useRouter();
+  
+  // Calculate particle burst center position (50% - 100px)
+  const screenWidth = Dimensions.get('window').width;
+  const particleBurstCenterX = (screenWidth / 2) - 100;
+  
   const [claimPickerOpen, setClaimPickerOpen] = useState(false);
   const [rollingAnim, setRollingAnim] = useState(false);
   const [showFireworks, setShowFireworks] = useState(false);
@@ -848,7 +854,7 @@ export default function Survival() {
         emojis={['🎲', '🔥', '🌶️', '💥', '✨']}
         distance={25}
         duration={800}
-        centerX="50%"
+        centerX={particleBurstCenterX}
         centerY="42%"
       />
 
