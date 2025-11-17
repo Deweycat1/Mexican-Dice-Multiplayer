@@ -220,9 +220,9 @@ export class LearningAIDiceOpponent {
 
   private readonly profiles = new Map<string, OpponentProfile>();
 
-  private callRiskBias = -0.08;
+  private callRiskBias = -0.15;
 
-  private truthBias = 0.05;
+  private truthBias = 0.0;
 
   private lastContext: LastContext = null;
 
@@ -236,7 +236,7 @@ export class LearningAIDiceOpponent {
 
   constructor(playerId = 'CPU') {
     this.playerId = playerId;
-    this.bandit = new LinUCB(12, 0.5);
+    this.bandit = new LinUCB(12, 0.35);
   }
 
   setRules(
@@ -261,15 +261,19 @@ export class LearningAIDiceOpponent {
 
     if (currentClaim == null) {
       let opening = this.canonicalClaimFromRoll(myRoll);
+      // More aggressive opening: always jump if weak, sometimes jump even if not
       if (this.isWeakTruth(opening)) {
-        opening = this.pressureJumpAbove(normalizeRoll(3, 2));
+        opening = this.pressureJumpAbove(normalizeRoll(4, 3));
+      } else if (Math.random() < 0.3) {
+        // 30% chance to bluff even with good opening
+        opening = this.pressureJumpAbove(opening);
       }
       this.lastContext = null;
       return { type: 'raise', claim: opening };
     }
 
     const truthful = this.bestTruthfulAbove(currentClaim, myRoll);
-    if (truthful != null && Math.random() < 0.55 + this.truthBias) {
+    if (truthful != null && Math.random() < 0.45 + this.truthBias) {
       this.lastContext = null;
       return { type: 'raise', claim: truthful };
     }
@@ -308,18 +312,23 @@ export class LearningAIDiceOpponent {
       const pBluffSample = (profile.bluffRate[category] ?? new BetaTracker(1, 1)).mean();
       const evCall = (2 * pBluffSample - 1) - this.callRiskBias;
       
-      // Dynamic threshold: more aggressive on high-value claims
-      let threshold = -0.25;
+      // Dynamic threshold: highly aggressive on all claims
+      let threshold = -0.30;
       if (category === 'mexican') {
-        // Mexican (21) - extremely suspicious, much more aggressive
-        threshold = -0.05;
+        // Mexican (21) - extremely suspicious, very aggressive
+        threshold = 0.0;
       } else if (category === 'double') {
-        // High doubles (55+) are harder to roll, more skeptical
-        if (currentClaim >= 55) {
-          threshold = -0.12;
+        // High doubles are harder to roll, very skeptical
+        if (currentClaim >= 66) {
+          threshold = -0.05;
+        } else if (currentClaim >= 55) {
+          threshold = -0.10;
         } else if (currentClaim >= 44) {
           threshold = -0.18;
         }
+      } else if (category === 'normal' && currentClaim >= 64) {
+        // High normal pairs (64-65) also suspicious
+        threshold = -0.20;
       }
       
       if (evCall >= threshold) {
@@ -328,7 +337,7 @@ export class LearningAIDiceOpponent {
       }
     }
 
-    const claim = truthful != null && Math.random() < 0.60 + this.truthBias
+    const claim = truthful != null && Math.random() < 0.50 + this.truthBias
       ? truthful
       : this.pickPressureClaim(currentClaim, true);
 
