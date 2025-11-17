@@ -4,6 +4,13 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 
 const GLOBAL_KEY = 'survival:globalBest';
 
+export type SurvivalBest = {
+  streak: number;
+  updatedAt: string;  // ISO timestamp
+  city?: string | null;
+  state?: string | null; // region / state code
+};
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Set CORS headers
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -17,8 +24,29 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   try {
     if (req.method === 'GET') {
-      const best = (await kv.get<number>(GLOBAL_KEY)) ?? 0;
-      return res.status(200).json({ best });
+      const stored = await kv.get<SurvivalBest | number>(GLOBAL_KEY);
+      
+      // Backward compatibility: if stored value is a number, convert to SurvivalBest
+      let survivalBest: SurvivalBest;
+      if (typeof stored === 'number') {
+        survivalBest = {
+          streak: stored,
+          updatedAt: new Date().toISOString(),
+          city: null,
+          state: null,
+        };
+      } else if (stored && typeof stored === 'object') {
+        survivalBest = stored;
+      } else {
+        survivalBest = {
+          streak: 0,
+          updatedAt: new Date().toISOString(),
+          city: null,
+          state: null,
+        };
+      }
+      
+      return res.status(200).json(survivalBest);
     }
 
     if (req.method === 'POST') {
@@ -29,14 +57,38 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.status(400).json({ error: 'streak must be a non-negative number' });
       }
 
-      const current = (await kv.get<number>(GLOBAL_KEY)) ?? 0;
+      // Extract location from Vercel headers (IP-based geo)
+      const city = (req.headers['x-vercel-ip-city'] as string | undefined) ?? null;
+      const state = (req.headers['x-vercel-ip-country-region'] as string | undefined) ?? null;
 
-      if (streak > current) {
-        await kv.set(GLOBAL_KEY, streak);
-        return res.status(200).json({ best: streak, updated: true });
+      // Get current best
+      const stored = await kv.get<SurvivalBest | number>(GLOBAL_KEY);
+      
+      // Extract current streak value (handle both old number format and new object format)
+      const currentStreak = typeof stored === 'number' 
+        ? stored 
+        : (stored && typeof stored === 'object') 
+          ? stored.streak 
+          : 0;
+
+      if (streak > currentStreak) {
+        const survivalBest: SurvivalBest = {
+          streak,
+          updatedAt: new Date().toISOString(),
+          city,
+          state,
+        };
+        
+        await kv.set(GLOBAL_KEY, survivalBest);
+        return res.status(200).json({ ...survivalBest, updated: true });
       }
 
-      return res.status(200).json({ best: current, updated: false });
+      // Return current best (convert to object if needed)
+      const currentBest: SurvivalBest = typeof stored === 'number'
+        ? { streak: stored, updatedAt: new Date().toISOString(), city: null, state: null }
+        : (stored as SurvivalBest);
+      
+      return res.status(200).json({ ...currentBest, updated: false });
     }
 
     res.setHeader('Allow', 'GET, POST');

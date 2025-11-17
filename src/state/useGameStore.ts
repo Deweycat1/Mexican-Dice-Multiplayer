@@ -499,7 +499,9 @@ export const useGameStore = create<Store>((set, get) => {
       const response = await fetch('/api/survival-best', { method: 'GET' });
       if (!response.ok) throw new Error('Failed to fetch global best');
       const data = await response.json();
-      set({ globalBest: data.best ?? 0 });
+      // Handle both old (number) and new (SurvivalBest object) formats
+      const streak = typeof data === 'number' ? data : (data.streak ?? 0);
+      set({ globalBest: streak });
     } catch (error) {
       console.error('Error fetching global best:', error);
       // Keep current globalBest value on error
@@ -515,7 +517,9 @@ export const useGameStore = create<Store>((set, get) => {
       });
       if (!response.ok) throw new Error('Failed to submit global best');
       const data = await response.json();
-      set({ globalBest: data.best ?? 0 });
+      // Handle response with new format (SurvivalBest object)
+      const bestStreak = data.streak ?? 0;
+      set({ globalBest: bestStreak });
     } catch (error) {
       console.error('Error submitting global best:', error);
       // Keep current globalBest value on error

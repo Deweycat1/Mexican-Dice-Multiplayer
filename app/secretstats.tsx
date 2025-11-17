@@ -10,7 +10,10 @@ import {
 } from 'react-native';
 
 interface SurvivalBestData {
-  best: number;
+  streak: number;
+  updatedAt: string;
+  city?: string | null;
+  state?: string | null;
 }
 
 interface SurvivalAverageData {
@@ -98,7 +101,7 @@ export default function SecretStatsScreen() {
   const router = useRouter();
   
   // Win/Survival stats
-  const [globalBest, setGlobalBest] = useState<number | null>(null);
+  const [survivalBest, setSurvivalBest] = useState<SurvivalBestData | null>(null);
   const [averageStreak, setAverageStreak] = useState<number | null>(null);
   const [playerWins, setPlayerWins] = useState<number>(0);
   const [cpuWins, setCpuWins] = useState<number>(0);
@@ -195,7 +198,7 @@ export default function SecretStatsScreen() {
         }
 
         // Set survival stats
-        setGlobalBest(survivalBestData.best ?? 0);
+        setSurvivalBest(survivalBestData);
         setAverageStreak(survivalAvgData.average ?? 0);
 
         // Set win stats
@@ -303,7 +306,23 @@ export default function SecretStatsScreen() {
           <View style={styles.statsTable}>
             <View style={styles.statRow}>
               <Text style={styles.statLabel}>Global Best Streak</Text>
-              <Text style={styles.statCountLarge}>{globalBest}</Text>
+              <Text style={styles.statCountLarge}>{survivalBest?.streak ?? 0}</Text>
+            </View>
+            <View style={styles.statRow}>
+              <Text style={styles.statLabel}>Record Location</Text>
+              <Text style={styles.statCountLarge}>
+                {survivalBest?.city && survivalBest?.state
+                  ? `${survivalBest.city}, ${survivalBest.state}`
+                  : 'Unknown (no location data)'}
+              </Text>
+            </View>
+            <View style={styles.statRow}>
+              <Text style={styles.statLabel}>Last Updated</Text>
+              <Text style={styles.statCountSmall}>
+                {survivalBest?.updatedAt
+                  ? new Date(survivalBest.updatedAt).toLocaleString()
+                  : '—'}
+              </Text>
             </View>
             <View style={styles.statRow}>
               <Text style={styles.statLabel}>Average Streak</Text>
@@ -664,5 +683,11 @@ const styles = StyleSheet.create({
     fontSize: 24,
     color: '#0FA958',
     fontWeight: '700',
+  },
+  statCountSmall: {
+    fontSize: 13,
+    color: '#CCCCCC',
+    fontWeight: '500',
+    fontStyle: 'italic',
   },
 });
