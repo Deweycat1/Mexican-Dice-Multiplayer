@@ -50,8 +50,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       'claimStats:66',
       
       // Win stats
-      'stats:wins:player',
-      'stats:wins:cpu',
+      'winStats:playerWins',
+      'winStats:cpuWins',
       
       // Survival stats
       'survival:globalBest',
