@@ -30,6 +30,25 @@ interface ClaimStatsData {
   claims: Record<string, number>;
 }
 
+interface ClaimOutcomeStats {
+  winning: Record<string, number>;
+  losing: Record<string, number>;
+}
+
+interface BehaviorStats {
+  rival: {
+    truths: number;
+    bluffs: number;
+    bluffSuccess: number;
+    truthRate: number;
+    bluffSuccessRate: number;
+  };
+  bluffCalls: {
+    player: { total: number; correct: number; accuracy: number };
+    rival: { total: number; correct: number; accuracy: number };
+  };
+}
+
 interface RollStat {
   roll: string;
   label: string;
@@ -64,6 +83,12 @@ export default function StatsScreen() {
   const [claimStats, setClaimStats] = useState<ClaimStat[]>([]);
   const [totalClaims, setTotalClaims] = useState<number>(0);
   
+  // Claim outcome stats (winning/losing claims)
+  const [claimOutcomeStats, setClaimOutcomeStats] = useState<ClaimOutcomeStats | null>(null);
+  
+  // Behavior stats (rival behavior and bluff calls)
+  const [behaviorStats, setBehaviorStats] = useState<BehaviorStats | null>(null);
+  
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);  useEffect(() => {
     const fetchStats = async () => {
@@ -74,7 +99,15 @@ export default function StatsScreen() {
         const baseUrl = typeof window !== 'undefined' ? window.location.origin : '';
         
         // Fetch all APIs in parallel
-        const [survivalBestRes, survivalAvgRes, rollsRes, winsRes, claimsRes] = await Promise.all([
+        const [
+          survivalBestRes,
+          survivalAvgRes,
+          rollsRes,
+          winsRes,
+          claimsRes,
+          claimOutcomeRes,
+          behaviorRes
+        ] = await Promise.all([
           fetch(`${baseUrl}/api/survival-best`, {
             method: 'GET',
             headers: { 'Content-Type': 'application/json' },
@@ -95,6 +128,14 @@ export default function StatsScreen() {
             method: 'GET',
             headers: { 'Content-Type': 'application/json' },
           }),
+          fetch(`${baseUrl}/api/claim-outcome-stats`, {
+            method: 'GET',
+            headers: { 'Content-Type': 'application/json' },
+          }),
+          fetch(`${baseUrl}/api/behavior-stats`, {
+            method: 'GET',
+            headers: { 'Content-Type': 'application/json' },
+          }),
         ]);
 
         if (!survivalBestRes.ok) throw new Error('Failed to fetch survival best');
@@ -102,12 +143,32 @@ export default function StatsScreen() {
         if (!rollsRes.ok) throw new Error('Failed to fetch roll stats');
         if (!winsRes.ok) throw new Error('Failed to fetch win stats');
         if (!claimsRes.ok) throw new Error('Failed to fetch claim stats');
+        // Don't throw errors for new APIs - they may not have data yet
 
         const survivalBestData: SurvivalBestData = await survivalBestRes.json();
         const survivalAvgData: SurvivalAverageData = await survivalAvgRes.json();
         const rollsData: RollStatsData = await rollsRes.json();
         const winsData: WinStatsData = await winsRes.json();
         const claimsData: ClaimStatsData = await claimsRes.json();
+        
+        // Parse new stats (with error handling)
+        try {
+          if (claimOutcomeRes.ok) {
+            const claimOutcomeData: ClaimOutcomeStats = await claimOutcomeRes.json();
+            setClaimOutcomeStats(claimOutcomeData);
+          }
+        } catch {
+          console.log('Claim outcome stats not available yet');
+        }
+        
+        try {
+          if (behaviorRes.ok) {
+            const behaviorData: BehaviorStats = await behaviorRes.json();
+            setBehaviorStats(behaviorData);
+          }
+        } catch {
+          console.log('Behavior stats not available yet');
+        }
 
         // Set survival stats
         setGlobalBest(survivalBestData.best ?? 0);
@@ -273,7 +334,7 @@ export default function StatsScreen() {
     <View style={styles.container}>
       <Text style={styles.title}>Global Statistics</Text>
       
-      <View style={styles.menuContainer}>
+      <ScrollView style={styles.scrollView} contentContainerStyle={styles.menuScrollContent}>
         <Pressable
           onPress={() => setCurrentView('rolls')}
           style={({ pressed }) => [styles.menuButton, pressed && styles.menuButtonPressed]}
@@ -300,14 +361,14 @@ export default function StatsScreen() {
           <Text style={styles.menuButtonTitle}>Claim Distribution</Text>
           <Text style={styles.menuButtonDesc}>See which claims are made most</Text>
         </Pressable>
-      </View>
 
-      <Pressable
-        onPress={() => router.back()}
-        style={({ pressed }) => [styles.backButton, pressed && styles.backButtonPressed]}
-      >
-        <Text style={styles.backButtonText}>Back to Menu</Text>
-      </Pressable>
+        <Pressable
+          onPress={() => router.back()}
+          style={({ pressed }) => [styles.backButton, pressed && styles.backButtonPressed]}
+        >
+          <Text style={styles.backButtonText}>Back to Menu</Text>
+        </Pressable>
+      </ScrollView>
     </View>
   );
 
@@ -401,6 +462,90 @@ export default function StatsScreen() {
               </View>
             </View>
           </View>
+
+          {/* Winning/Losing Claims */}
+          {claimOutcomeStats && (
+            <View style={styles.card}>
+              <Text style={styles.cardTitle}>🎯 Most Common Quick Play Outcomes</Text>
+              <View style={styles.statsTable}>
+                {(() => {
+                  const winningEntries = Object.entries(claimOutcomeStats.winning);
+                  const losingEntries = Object.entries(claimOutcomeStats.losing);
+                  const topWinning = winningEntries.length > 0 
+                    ? winningEntries.sort((a, b) => b[1] - a[1])[0]
+                    : null;
+                  const topLosing = losingEntries.length > 0
+                    ? losingEntries.sort((a, b) => b[1] - a[1])[0]
+                    : null;
+
+                  return (
+                    <>
+                      <View style={styles.statRow}>
+                        <Text style={styles.statLabel}>Top Winning Claim</Text>
+                        <Text style={styles.statCountLarge}>
+                          {topWinning ? `${getRollLabel(topWinning[0])} (${topWinning[1]}×)` : 'N/A'}
+                        </Text>
+                      </View>
+                      <View style={styles.statRow}>
+                        <Text style={styles.statLabel}>Top Losing Claim</Text>
+                        <Text style={styles.statCountLarge}>
+                          {topLosing ? `${getRollLabel(topLosing[0])} (${topLosing[1]}×)` : 'N/A'}
+                        </Text>
+                      </View>
+                    </>
+                  );
+                })()}
+              </View>
+            </View>
+          )}
+
+          {/* Bluff Call Accuracy */}
+          {behaviorStats?.bluffCalls && (
+            <View style={styles.card}>
+              <Text style={styles.cardTitle}>🎲 Bluff Call Accuracy (Global)</Text>
+              <View style={styles.statsTable}>
+                <View style={styles.statRow}>
+                  <Text style={styles.statLabel}>Your Accuracy</Text>
+                  <Text style={styles.statCountLarge}>
+                    {(behaviorStats.bluffCalls.player.accuracy * 100).toFixed(1)}%
+                  </Text>
+                </View>
+                <View style={styles.statRow}>
+                  <Text style={styles.statLabel}>Rival Accuracy</Text>
+                  <Text style={styles.statCountLarge}>
+                    {(behaviorStats.bluffCalls.rival.accuracy * 100).toFixed(1)}%
+                  </Text>
+                </View>
+              </View>
+            </View>
+          )}
+
+          {/* Rival Behavior */}
+          {behaviorStats?.rival && (
+            <View style={styles.card}>
+              <Text style={styles.cardTitle}>🤖 The Rival&apos;s Behavior (Global)</Text>
+              <View style={styles.statsTable}>
+                <View style={styles.statRow}>
+                  <Text style={styles.statLabel}>Truth Rate</Text>
+                  <Text style={styles.statCountLarge}>
+                    {(behaviorStats.rival.truthRate * 100).toFixed(1)}%
+                  </Text>
+                </View>
+                <View style={styles.statRow}>
+                  <Text style={styles.statLabel}>Total Bluffs Attempted</Text>
+                  <Text style={styles.statCountLarge}>
+                    {behaviorStats.rival.bluffs}
+                  </Text>
+                </View>
+                <View style={styles.statRow}>
+                  <Text style={styles.statLabel}>Bluff Success Rate</Text>
+                  <Text style={styles.statCountLarge}>
+                    {(behaviorStats.rival.bluffSuccessRate * 100).toFixed(1)}%
+                  </Text>
+                </View>
+              </View>
+            </View>
+          )}
         </ScrollView>
       </View>
     );
@@ -515,6 +660,12 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingBottom: 20,
+  },
+  menuScrollContent: {
+    paddingHorizontal: 16,
+    paddingBottom: 20,
+    flexGrow: 1,
+    justifyContent: 'center',
   },
   card: {
     backgroundColor: '#115E38',
@@ -657,19 +808,15 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     textAlign: 'center',
   },
-  menuContainer: {
-    flex: 1,
-    width: '100%',
-    maxWidth: 600,
-    justifyContent: 'center',
-    paddingHorizontal: 16,
-  },
   menuButton: {
     backgroundColor: '#115E38',
     borderRadius: 12,
     padding: 24,
     marginBottom: 16,
     alignItems: 'center',
+    width: '100%',
+    maxWidth: 600,
+    alignSelf: 'center',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.3,

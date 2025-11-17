@@ -187,6 +187,38 @@ export const useGameStore = create<Store>((set, get) => {
     }
   };
 
+  const postClaimOutcome = async (params: { 
+    winner: 'player' | 'cpu'; 
+    winningClaim?: string | null; 
+    losingClaim?: string | null;
+  }) => {
+    try {
+      await fetch('/api/claim-outcome-stats', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(params),
+      });
+    } catch (error) {
+      console.error('Failed to record claim outcome:', error);
+    }
+  };
+
+  type BehaviorEvent = 
+    | { type: 'rival-claim'; truth: boolean; bluffWon?: boolean }
+    | { type: 'bluff-call'; caller: 'player' | 'rival'; correct: boolean };
+
+  const postBehaviorEvent = async (event: BehaviorEvent) => {
+    try {
+      await fetch('/api/behavior-stats', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(event),
+      });
+    } catch (error) {
+      console.error('Failed to record behavior event:', error);
+    }
+  };
+
   const pushSurvivalClaim = (who: Turn, claim: number, actual: number | null | undefined) => {
     const s = get();
     if (s.mode !== 'survival') return;
@@ -267,6 +299,16 @@ export const useGameStore = create<Store>((set, get) => {
       if (finished) {
         const winner = other(who); // The winner is the opposite of who lost
         void recordWin(winner);
+        
+        // Record winning/losing claims for Quick Play
+        // Use the last claim made (normalized roll code)
+        const finalClaim = state.lastClaim ? String(state.lastClaim) : null;
+        
+        void postClaimOutcome({
+          winner,
+          winningClaim: winner === 'player' ? finalClaim : null,
+          losingClaim: winner === 'cpu' ? finalClaim : null,
+        });
       }
       // Add point event to normal mode claims history
       pushEvent(finalMessage);
@@ -446,6 +488,14 @@ export const useGameStore = create<Store>((set, get) => {
     const loser = liar ? prevBy : caller;
     const lossAmount: 1 | 2 = penalty === 2 ? 2 : 1;
 
+    // Track bluff call behavior
+    const callerWasCorrect = liar; // If the defender was lying, the caller was correct
+    void postBehaviorEvent({
+      type: 'bluff-call',
+      caller: caller === 'player' ? 'player' : 'rival',
+      correct: callerWasCorrect,
+    });
+
     const callerName = caller === 'player' ? 'You' : 'The Rival';
     const defenderName = prevBy === 'player' ? 'You' : 'The Rival';
     const defenderToldTruth = !liar;
@@ -587,6 +637,14 @@ export const useGameStore = create<Store>((set, get) => {
 
       // Record claim statistics (async, non-blocking)
       void recordClaimStat(claim);
+
+      // Track Rival behavior: truth vs bluff
+      const truth = claim === actual;
+      void postBehaviorEvent({
+        type: 'rival-claim',
+        truth,
+        bluffWon: false, // We'll update this when the round resolves
+      });
 
       // Update baseline logic: preserve baseline through reverses
       const currentState = get();

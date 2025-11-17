@@ -21,7 +21,7 @@ type DiceProps = {
 
 const VEGAS_RED = '#B80F15';
 const EDGE = '#70090C';
-const PIP = '#ffffff';
+const PIP = '#fcfafaff';
 const BASE_RED = '#C81D25';
 
 const pipsFor: Record<number, { x: number; y: number }[]> = {
