@@ -118,6 +118,11 @@ export default function SecretStatsScreen() {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Reset stats state
+  const [pendingConfirm, setPendingConfirm] = useState<boolean>(false);
+  const [isResetting, setIsResetting] = useState<boolean>(false);
+  const [resetMessage, setResetMessage] = useState<string | null>(null);
+
   useEffect(() => {
     const fetchStats = async () => {
       setIsLoading(true);
@@ -214,6 +219,85 @@ export default function SecretStatsScreen() {
 
     fetchStats();
   }, []);
+
+  // Auto-timeout confirmation after 15 seconds
+  useEffect(() => {
+    if (!pendingConfirm) return;
+
+    const timer = setTimeout(() => {
+      setPendingConfirm(false);
+      setResetMessage(null);
+    }, 15000); // 15 seconds
+
+    return () => clearTimeout(timer);
+  }, [pendingConfirm]);
+
+  // Handler for reset stats button
+  const handleResetClick = async () => {
+    setResetMessage(null);
+
+    // First click — arm confirmation
+    if (!pendingConfirm) {
+      setPendingConfirm(true);
+      return;
+    }
+
+    // Second click — ask for final confirmation
+    const proceed = typeof window !== 'undefined' && window.confirm(
+      "FINAL WARNING: This will permanently delete ALL stats for Mexican Dice. This cannot be undone. Continue?"
+    );
+    if (!proceed) {
+      setPendingConfirm(false);
+      setResetMessage("Reset cancelled.");
+      return;
+    }
+
+    // Prompt for password
+    const entered = typeof window !== 'undefined' && window.prompt("Enter admin password to reset ALL stats:");
+    if (!entered) {
+      setPendingConfirm(false);
+      setResetMessage("Reset cancelled (no password provided).");
+      return;
+    }
+
+    try {
+      setIsResetting(true);
+      const baseUrl = typeof window !== 'undefined' ? window.location.origin : '';
+
+      const res = await fetch(`${baseUrl}/api/admin/reset-stats`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ password: entered }),
+      });
+
+      if (!res.ok) {
+        if (res.status === 401) {
+          const errorData = await res.json();
+          setResetMessage(errorData.error || "Incorrect password. Stats were NOT reset.");
+          setPendingConfirm(false);
+          return;
+        }
+        throw new Error(`Reset failed with status ${res.status}`);
+      }
+
+      const data = await res.json();
+      setResetMessage(data.message || "All stats have been reset successfully.");
+      setPendingConfirm(false);
+
+      // Refresh stats after successful reset
+      setTimeout(() => {
+        window.location.reload();
+      }, 2000);
+    } catch (err) {
+      console.error(err);
+      setResetMessage("There was an error resetting stats. Check logs and try again.");
+      setPendingConfirm(false);
+    } finally {
+      setIsResetting(false);
+    }
+  };
 
   const getRollLabel = (roll: string): string => {
     switch (roll) {
@@ -513,6 +597,46 @@ export default function SecretStatsScreen() {
             </View>
           </View>
         )}
+
+        {/* Reset All Stats Button */}
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>⚠️ Admin Controls</Text>
+          
+          <Pressable
+            onPress={handleResetClick}
+            disabled={isResetting}
+            style={({ pressed }) => [
+              styles.resetButton,
+              pendingConfirm && styles.resetButtonArmed,
+              (pressed || isResetting) && styles.resetButtonPressed,
+            ]}
+          >
+            <Text style={styles.resetButtonText}>
+              {isResetting 
+                ? "Resetting..." 
+                : pendingConfirm 
+                  ? "Confirm Reset (This Can't Be Undone)" 
+                  : "Reset All Stats"}
+            </Text>
+          </Pressable>
+
+          {pendingConfirm && (
+            <Text style={styles.warningText}>
+              This will permanently erase ALL stats, including survival, quick play, roll history,
+              and behavioral data. Click the button again and enter the password to confirm.
+            </Text>
+          )}
+
+          {resetMessage && (
+            <Text style={[
+              styles.resetMessage,
+              resetMessage.includes('success') && styles.resetMessageSuccess,
+              resetMessage.includes('Incorrect') && styles.resetMessageError,
+            ]}>
+              {resetMessage}
+            </Text>
+          )}
+        </View>
       </ScrollView>
     </View>
   );
@@ -689,5 +813,46 @@ const styles = StyleSheet.create({
     color: '#CCCCCC',
     fontWeight: '500',
     fontStyle: 'italic',
+  },
+  resetButton: {
+    backgroundColor: '#C21807',
+    borderRadius: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 24,
+    marginTop: 12,
+    alignItems: 'center',
+  },
+  resetButtonArmed: {
+    backgroundColor: '#FF3B30',
+  },
+  resetButtonPressed: {
+    opacity: 0.7,
+  },
+  resetButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '700',
+    textAlign: 'center',
+  },
+  warningText: {
+    fontSize: 13,
+    color: '#FF9500',
+    textAlign: 'center',
+    marginTop: 12,
+    fontStyle: 'italic',
+    lineHeight: 18,
+  },
+  resetMessage: {
+    fontSize: 14,
+    color: '#E6FFE6',
+    textAlign: 'center',
+    marginTop: 12,
+    fontWeight: '600',
+  },
+  resetMessageSuccess: {
+    color: '#0FA958',
+  },
+  resetMessageError: {
+    color: '#FF3B30',
   },
 });
