@@ -318,13 +318,16 @@ export class LearningAIDiceOpponent {
         // Mexican (21) - extremely suspicious, very aggressive
         threshold = 0.0;
       } else if (category === 'double') {
-        // High doubles are harder to roll, very skeptical
+        // All doubles are harder to roll (only 1/36 chance each), skeptical on all
         if (currentClaim >= 66) {
           threshold = -0.05;
         } else if (currentClaim >= 55) {
           threshold = -0.10;
         } else if (currentClaim >= 44) {
           threshold = -0.18;
+        } else if (currentClaim >= 33) {
+          // Even lower doubles (33, 22) get scrutinized
+          threshold = -0.23;
         }
       } else if (category === 'normal' && currentClaim >= 64) {
         // High normal pairs (64-65) also suspicious
