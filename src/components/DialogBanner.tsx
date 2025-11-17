@@ -9,8 +9,13 @@ interface DialogBannerProps {
 }
 
 export default function DialogBanner({ speaker, text }: DialogBannerProps) {
+  const containerStyle = [
+    styles.dialogContainer,
+    speaker === 'user' ? styles.userContainer : styles.rivalContainer
+  ];
+
   return (
-    <View style={styles.dialogContainer}>
+    <View style={containerStyle}>
       <View style={styles.dialogSpeaker}>
         <Text style={styles.dialogSpeakerEmoji}>
           {speaker === 'user' ? '😇' : '👹'}
@@ -46,11 +51,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: 10,
-    backgroundColor: 'rgba(17, 94, 56, 0.98)',
     borderWidth: 1,
     borderColor: 'rgba(224, 181, 12, 0.4)',
     alignItems: 'center',
     zIndex: 1000,
+  },
+  userContainer: {
+    backgroundColor: 'rgba(107, 255, 137, 0.35)',
+  },
+  rivalContainer: {
+    backgroundColor: 'rgba(255, 107, 107, 0.35)',
   },
   dialogSpeaker: {
     flexDirection: 'row',
