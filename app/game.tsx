@@ -3,14 +3,14 @@ import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
-    Animated,
-    Image,
-    Modal,
-    Pressable,
-    SafeAreaView,
-    StyleSheet,
-    Text,
-    View,
+  Animated,
+  Image,
+  Modal,
+  Pressable,
+  SafeAreaView,
+  StyleSheet,
+  Text,
+  View,
 } from 'react-native';
 
 import BluffModal from '../src/components/BluffModal';
@@ -247,14 +247,14 @@ export default function Game() {
               <View style={styles.actionRow}>
                 <StyledButton
                   label={hasRolled && !mustBluff ? 'Claim Roll' : 'Roll'}
-                  variant="primary"
+                  variant="success"
                   onPress={handleRollOrClaim}
                   style={styles.btn}
                   disabled={controlsDisabled || (hasRolled && !rolledCanClaim)}
                 />
                 <StyledButton
                   label="Call Bluff"
-                  variant="success"
+                  variant="primary"
                   onPress={handleCallBluff}
                   style={styles.btn}
                   disabled={controlsDisabled || hasRolled}
@@ -263,7 +263,7 @@ export default function Game() {
 
               <View style={styles.bottomRow}>
                 <StyledButton
-                  label="Choose Claim"
+                  label="Bluff Options"
                   variant="outline"
                   onPress={handleOpenBluff}
                   style={styles.btnWide}

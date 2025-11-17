@@ -358,14 +358,14 @@ export default function Survival() {
               <View style={styles.actionRow}>
                 <StyledButton
                   label={hasRolled && !mustBluff ? 'Claim Roll' : 'Roll'}
-                  variant="primary"
+                  variant="success"
                   onPress={handleRollOrClaim}
                   style={styles.btn}
                   disabled={controlsDisabled || (hasRolled && !rolledCanClaim)}
                 />
                 <StyledButton
                   label="Call Bluff"
-                  variant="success"
+                  variant="primary"
                   onPress={handleCallBluff}
                   style={styles.btn}
                   disabled={controlsDisabled || hasRolled}
@@ -379,7 +379,7 @@ export default function Survival() {
 
               <View style={styles.bottomRow}>
                 <StyledButton
-                  label="Choose Claim"
+                  label="Bluff Options"
                   variant="outline"
                   onPress={handleOpenBluff}
                   style={styles.btnWide}

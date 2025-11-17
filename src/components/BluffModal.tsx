@@ -1,5 +1,5 @@
 import React from 'react';
-import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Modal, Pressable, ScrollView, StyleSheet, Text } from 'react-native';
 
 type Props = {
   visible: boolean;
@@ -22,9 +22,8 @@ const formatClaim = (value: number) => {
 export default function BluffModal({ visible, options, onCancel, onSelect, canShowSocial, onShowSocial }: Props) {
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onCancel}>
-      <View style={styles.backdrop}>
-        <Pressable style={styles.backdropPress} onPress={onCancel} />
-        <View style={styles.card}>
+      <Pressable style={styles.backdrop} onPress={onCancel}>
+        <Pressable style={styles.card} onPress={(e) => e.stopPropagation()}>
           <Text style={styles.heading}>Choose your claim</Text>
           <Text style={styles.subtle}>
             Select a legal claim or tap Cancel/outside to keep your roll.
@@ -73,8 +72,8 @@ export default function BluffModal({ visible, options, onCancel, onSelect, canSh
           >
             <Text style={styles.cancelLabel}>✕ Cancel - Keep My Roll</Text>
           </Pressable>
-        </View>
-      </View>
+        </Pressable>
+      </Pressable>
     </Modal>
   );
 }
@@ -87,13 +86,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     padding: 24,
   },
-  backdropPress: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-  },
   card: {
     width: '100%',
     maxHeight: '80%',
@@ -102,7 +94,6 @@ const styles = StyleSheet.create({
     padding: 20,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.08)',
-    zIndex: 1,
   },
   heading: { 
     color: '#fff', 
