@@ -236,37 +236,37 @@ export default function Survival() {
     if (currentStreak > prevStreakForMicroAnim.current && currentStreak > 0) {
       // Trigger micro animations
       
-      // 1. Streak label pop
+      // 1. Streak label pop + glow (550-650ms total)
       streakScaleAnim.setValue(1);
       Animated.sequence([
         Animated.timing(streakScaleAnim, {
           toValue: 1.2,
-          duration: 100,
+          duration: 300,
           useNativeDriver: true,
         }),
         Animated.spring(streakScaleAnim, {
           toValue: 1,
-          friction: 5,
-          tension: 100,
+          friction: 6,
+          tension: 80,
           useNativeDriver: true,
         }),
       ]).start();
 
-      // 2. Particle burst
+      // 2. Particle burst (750-850ms)
       setShowParticleBurst(true);
-      setTimeout(() => setShowParticleBurst(false), 350);
+      setTimeout(() => setShowParticleBurst(false), 800);
 
-      // 3. Dice micro-jiggle
+      // 3. Dice micro-jiggle (450-500ms)
       diceJiggleAnim.setValue(0);
       Animated.sequence([
         Animated.timing(diceJiggleAnim, {
           toValue: -5,
-          duration: 75,
+          duration: 225,
           useNativeDriver: true,
         }),
         Animated.timing(diceJiggleAnim, {
           toValue: 0,
-          duration: 75,
+          duration: 250,
           useNativeDriver: true,
         }),
       ]).start();
@@ -662,7 +662,7 @@ export default function Survival() {
         particleCount={5}
         emojis={['🎲', '🔥', '🌶️', '💥', '✨']}
         distance={25}
-        duration={300}
+        duration={800}
       />
 
       {/* Screen effects overlays */}
