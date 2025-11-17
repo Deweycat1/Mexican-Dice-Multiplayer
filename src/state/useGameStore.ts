@@ -6,16 +6,16 @@ import type { DicePair } from '../engine/mexican';
 import { loadBestStreak, saveBestStreak } from './survivalStorage';
 
 import {
-    categorizeClaim,
-    claimMatchesRoll,
-    compareClaims,
-    isAlwaysClaimable,
-    isLegalRaise,
-    isMexican,
-    isReverseOf,
-    nextHigherClaim,
-    normalizeRoll,
-    resolveBluff
+  categorizeClaim,
+  claimMatchesRoll,
+  compareClaims,
+  isAlwaysClaimable,
+  isLegalRaise,
+  isMexican,
+  isReverseOf,
+  nextHigherClaim,
+  normalizeRoll,
+  resolveBluff
 } from '../engine/mexican';
 import { formatCallBluffMessage } from '../utils/narration';
 
@@ -540,11 +540,14 @@ export const useGameStore = create<Store>((set, get) => {
     const defenderName = prevBy === 'player' ? 'You' : 'The Rival';
     const defenderToldTruth = !liar;
 
+    // In survival mode, always show penalty as 1 in the message (even if actual loss is 2)
+    const displayPenalty = state.mode === 'survival' ? 1 : lossAmount;
+
     const message = formatCallBluffMessage({
       callerName,
       defenderName,
       defenderToldTruth,
-      penalty: lossAmount,
+      penalty: displayPenalty,
       useEmDash: false,
     });
 

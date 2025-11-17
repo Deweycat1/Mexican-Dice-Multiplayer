@@ -1,10 +1,10 @@
 // app/_layout.tsx
+import { Analytics } from '@vercel/analytics/react';
 import { Stack } from 'expo-router';
 import React, { useEffect } from 'react';
 import { Platform } from 'react-native';
 import 'react-native-gesture-handler';
 import 'react-native-reanimated';
-import { Analytics } from '@vercel/analytics/react';
 
 export default function RootLayout() {
   // Ensure web root/background fills viewport and uses the canonical dark green
