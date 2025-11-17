@@ -328,38 +328,71 @@ export class LearningAIDiceOpponent {
       1
     );
 
+    // CRITICAL: Never waste time calling bluff on easily beatable claims
+    // If we can truthfully beat the claim with a decent roll, just do it
+    const isEasyToBeat = currentClaim < 52 || (truthful != null && currentClaim < 62);
+    
+    // For high-stakes claims (Mexican, high doubles, high pairs), evaluate calling bluff
+    const isHighStakes = category === 'mexican' || 
+                         (category === 'double' && currentClaim >= 44) ||
+                         (category === 'normal' && currentClaim >= 62);
+
+    if (isHighStakes) {
+      // For high-stakes claims, use DIRECT probability comparison (not EV)
+      // This ensures we call when we believe opponent is likely bluffing
+      const pBluffSample = (profile.bluffRate[category] ?? new BetaTracker(1, 1)).mean();
+      
+      // Probability thresholds: If we think opponent bluffs MORE than this %, call
+      let pThreshold = 0.50; // Default: call if we think they bluff >50%
+      
+      if (category === 'mexican') {
+        // Mexican (21) - True odds are 1/36 (2.78%), so be VERY suspicious
+        // Call if we think they're bluffing >25% of the time (still lenient!)
+        pThreshold = 0.25 - suspicionBoost;
+        // Later rounds: even more aggressive
+        if (roundIndex > 0) pThreshold -= 0.10;
+        // Floor at 15% - almost always call Mexican
+        pThreshold = Math.max(pThreshold, 0.15);
+      } else if (category === 'double') {
+        // Doubles are 1/36 each, be aggressive
+        if (currentClaim >= 66) {
+          pThreshold = 0.40;  // Very aggressive on 66
+        } else if (currentClaim >= 55) {
+          pThreshold = 0.45;  // Aggressive on 55
+        } else if (currentClaim >= 44) {
+          pThreshold = 0.50;  // Skeptical on 44
+        }
+      } else if (category === 'normal' && currentClaim >= 64) {
+        // High normal pairs
+        pThreshold = 0.45;
+      }
+      
+      // Special (31, 41) handled by default threshold
+      
+      if (pBluffSample >= pThreshold) {
+        this.lastContext = { opponentId, action: 'CALL', context: callContext };
+        return { type: 'call_bluff' };
+      }
+    }
+
+    // For low claims that are easily beatable, never call - just raise
+    if (isEasyToBeat) {
+      const claim = truthful != null && Math.random() < 0.60 + this.truthBias
+        ? truthful
+        : this.pickPressureClaim(currentClaim, true);
+      this.lastContext = { opponentId, action: 'RAISE', context: raiseContext };
+      return { type: 'raise', claim };
+    }
+
+    // For medium claims, use bandit to decide
     const { action } = this.bandit.choose({ CALL: callContext, RAISE: raiseContext });
 
     if (action === 'CALL') {
+      // Apply less aggressive threshold for medium claims
       const pBluffSample = (profile.bluffRate[category] ?? new BetaTracker(1, 1)).mean();
       const evCall = (2 * pBluffSample - 1) - this.callRiskBias;
       
-      // Dynamic threshold: MUCH more aggressive on suspicious claims
-      let threshold = -0.45;
-      if (category === 'mexican') {
-        // Mexican (21) - EXTREMELY suspicious, call almost always
-        // Only 1/36 chance to roll, so be very aggressive
-        threshold = 0.35 + suspicionBoost;  // Even more aggressive if claiming too often
-      } else if (category === 'double') {
-        // All doubles are hard to roll (only 1/36 chance each)
-        if (currentClaim >= 66) {
-          threshold = 0.25;  // Very aggressive on 66
-        } else if (currentClaim >= 55) {
-          threshold = 0.20;  // Aggressive on 55
-        } else if (currentClaim >= 44) {
-          threshold = 0.10;  // Skeptical on 44
-        } else if (currentClaim >= 33) {
-          threshold = 0.05;  // Even 33 and 22 are suspicious
-        }
-      } else if (category === 'normal' && currentClaim >= 64) {
-        // High normal pairs (64-65) also very suspicious
-        threshold = 0.15;
-      } else if (category === 'special') {
-        // 31 reverses should be treated skeptically too
-        threshold = 0.10;
-      }
-      
-      if (evCall >= threshold) {
+      if (evCall >= -0.10) {
         this.lastContext = { opponentId, action: 'CALL', context: callContext };
         return { type: 'call_bluff' };
       }
