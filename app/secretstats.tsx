@@ -1,0 +1,668 @@
+import { useRouter } from 'expo-router';
+import React, { useEffect, useState } from 'react';
+import {
+    ActivityIndicator,
+    Pressable,
+    ScrollView,
+    StyleSheet,
+    Text,
+    View,
+} from 'react-native';
+
+interface SurvivalBestData {
+  best: number;
+}
+
+interface SurvivalAverageData {
+  average: number;
+}
+
+interface WinStatsData {
+  playerWins: number;
+  cpuWins: number;
+}
+
+interface ClaimOutcomeStats {
+  winning: Record<string, number>;
+  losing: Record<string, number>;
+}
+
+interface BehaviorStats {
+  rival: {
+    truths: number;
+    bluffs: number;
+    bluffSuccess: number;
+    truthRate: number;
+    bluffSuccessRate: number;
+  };
+  bluffCalls: {
+    player: { total: number; correct: number; accuracy: number };
+    rival: { total: number; correct: number; accuracy: number };
+  };
+}
+
+interface MetaStats {
+  honesty: {
+    truthful: number;
+    bluffs: number;
+    honestyRate: number;
+  };
+  aggression: {
+    player: {
+      aggressiveEvents: number;
+      totalEvents: number;
+      index: number;
+    };
+    rival: {
+      aggressiveEvents: number;
+      totalEvents: number;
+      index: number;
+    };
+  };
+  claimsRisk: {
+    safest: {
+      code: string;
+      wins: number;
+      losses: number;
+      winRate: number;
+    } | null;
+    mostDangerous: {
+      code: string;
+      wins: number;
+      losses: number;
+      winRate: number;
+    } | null;
+    all: {
+      [code: string]: {
+        wins: number;
+        losses: number;
+        winRate: number;
+        uses: number;
+      };
+    };
+  };
+  rollRarity: {
+    totalRolls: number;
+    rolls: {
+      [code: string]: {
+        count: number;
+        observed: number;
+        expected: number;
+        delta: number;
+      };
+    };
+  };
+}
+
+export default function SecretStatsScreen() {
+  const router = useRouter();
+  
+  // Win/Survival stats
+  const [globalBest, setGlobalBest] = useState<number | null>(null);
+  const [averageStreak, setAverageStreak] = useState<number | null>(null);
+  const [playerWins, setPlayerWins] = useState<number>(0);
+  const [cpuWins, setCpuWins] = useState<number>(0);
+  
+  // Claim outcome stats (winning/losing claims)
+  const [claimOutcomeStats, setClaimOutcomeStats] = useState<ClaimOutcomeStats | null>(null);
+  
+  // Behavior stats (rival behavior and bluff calls)
+  const [behaviorStats, setBehaviorStats] = useState<BehaviorStats | null>(null);
+  
+  // Meta stats (honesty, aggression, claims risk, roll rarity)
+  const [metaStats, setMetaStats] = useState<MetaStats | null>(null);
+  
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchStats = async () => {
+      setIsLoading(true);
+      setError(null);
+
+      try {
+        const baseUrl = typeof window !== 'undefined' ? window.location.origin : '';
+        
+        // Fetch all relevant APIs
+        const [
+          survivalBestRes,
+          survivalAvgRes,
+          winsRes,
+          claimOutcomeRes,
+          behaviorRes,
+          metaRes
+        ] = await Promise.all([
+          fetch(`${baseUrl}/api/survival-best`, {
+            method: 'GET',
+            headers: { 'Content-Type': 'application/json' },
+          }),
+          fetch(`${baseUrl}/api/survival-average`, {
+            method: 'GET',
+            headers: { 'Content-Type': 'application/json' },
+          }),
+          fetch(`${baseUrl}/api/win-stats`, {
+            method: 'GET',
+            headers: { 'Content-Type': 'application/json' },
+          }),
+          fetch(`${baseUrl}/api/claim-outcome-stats`, {
+            method: 'GET',
+            headers: { 'Content-Type': 'application/json' },
+          }),
+          fetch(`${baseUrl}/api/behavior-stats`, {
+            method: 'GET',
+            headers: { 'Content-Type': 'application/json' },
+          }),
+          fetch(`${baseUrl}/api/meta-stats`, {
+            method: 'GET',
+            headers: { 'Content-Type': 'application/json' },
+          }),
+        ]);
+
+        if (!survivalBestRes.ok) throw new Error('Failed to fetch survival best');
+        if (!survivalAvgRes.ok) throw new Error('Failed to fetch survival average');
+        if (!winsRes.ok) throw new Error('Failed to fetch win stats');
+
+        const survivalBestData: SurvivalBestData = await survivalBestRes.json();
+        const survivalAvgData: SurvivalAverageData = await survivalAvgRes.json();
+        const winsData: WinStatsData = await winsRes.json();
+        
+        // Parse new stats (with error handling)
+        try {
+          if (claimOutcomeRes.ok) {
+            const claimOutcomeData: ClaimOutcomeStats = await claimOutcomeRes.json();
+            setClaimOutcomeStats(claimOutcomeData);
+          }
+        } catch {
+          console.log('Claim outcome stats not available yet');
+        }
+        
+        try {
+          if (behaviorRes.ok) {
+            const behaviorData: BehaviorStats = await behaviorRes.json();
+            setBehaviorStats(behaviorData);
+          }
+        } catch {
+          console.log('Behavior stats not available yet');
+        }
+
+        try {
+          if (metaRes.ok) {
+            const metaData: MetaStats = await metaRes.json();
+            setMetaStats(metaData);
+          }
+        } catch {
+          console.log('Meta stats not available yet');
+        }
+
+        // Set survival stats
+        setGlobalBest(survivalBestData.best ?? 0);
+        setAverageStreak(survivalAvgData.average ?? 0);
+
+        // Set win stats
+        setPlayerWins(winsData.playerWins ?? 0);
+        setCpuWins(winsData.cpuWins ?? 0);
+      } catch (err) {
+        console.error('Error fetching stats:', err);
+        setError(err instanceof Error ? err.message : 'Failed to load statistics');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchStats();
+  }, []);
+
+  const getRollLabel = (roll: string): string => {
+    switch (roll) {
+      case '21':
+        return '21 (Mexican 🌮)';
+      case '31':
+        return '31 (Reverse)';
+      case '41':
+        return '41 (Social)';
+      default:
+        return roll;
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <View style={styles.container}>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#0FA958" />
+          <Text style={styles.loadingText}>Loading statistics...</Text>
+        </View>
+        <Pressable
+          onPress={() => router.push('/')}
+          style={({ pressed }) => [styles.backButton, pressed && styles.backButtonPressed]}
+        >
+          <Text style={styles.backButtonText}>Back to Menu</Text>
+        </Pressable>
+      </View>
+    );
+  }
+
+  if (error) {
+    return (
+      <View style={styles.container}>
+        <View style={styles.errorContainer}>
+          <Text style={styles.errorTitle}>Error Loading Stats</Text>
+          <Text style={styles.errorText}>{error}</Text>
+        </View>
+        <Pressable
+          onPress={() => router.push('/')}
+          style={({ pressed }) => [styles.backButton, pressed && styles.backButtonPressed]}
+        >
+          <Text style={styles.backButtonText}>Back to Menu</Text>
+        </Pressable>
+      </View>
+    );
+  }
+
+  const totalGames = playerWins + cpuWins;
+  const playerWinRate = totalGames > 0 ? (playerWins / totalGames) * 100 : 0;
+  const cpuWinRate = totalGames > 0 ? (cpuWins / totalGames) * 100 : 0;
+
+  return (
+    <View style={styles.container}>
+      <Pressable onPress={() => router.push('/')} style={styles.backButtonTop}>
+        <Text style={styles.backButtonTopText}>← Back</Text>
+      </Pressable>
+      
+      <Text style={styles.title}>Win & Survival Stats</Text>
+      <Text style={styles.subtitle}>🔒 Hidden Analytics</Text>
+
+      <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>🎮 Quick Play - Total Games</Text>
+          <Text style={styles.bigNumber}>{totalGames.toLocaleString()}</Text>
+        </View>
+
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>🏆 Quick Play Wins</Text>
+          <View style={styles.statsTable}>
+            <View style={styles.statRow}>
+              <Text style={styles.statLabel}>You</Text>
+              <View style={styles.statValues}>
+                <Text style={styles.statCount}>{playerWins}</Text>
+                <Text style={styles.statPercent}>({playerWinRate.toFixed(1)}%)</Text>
+              </View>
+            </View>
+            <View style={styles.statRow}>
+              <Text style={styles.statLabel}>The Rival</Text>
+              <View style={styles.statValues}>
+                <Text style={styles.statCount}>{cpuWins}</Text>
+                <Text style={styles.statPercent}>({cpuWinRate.toFixed(1)}%)</Text>
+              </View>
+            </View>
+          </View>
+        </View>
+
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>🔥 Survival Mode</Text>
+          <View style={styles.statsTable}>
+            <View style={styles.statRow}>
+              <Text style={styles.statLabel}>Global Best Streak</Text>
+              <Text style={styles.statCountLarge}>{globalBest}</Text>
+            </View>
+            <View style={styles.statRow}>
+              <Text style={styles.statLabel}>Average Streak</Text>
+              <Text style={styles.statCountLarge}>{averageStreak?.toFixed(2) ?? '0.00'}</Text>
+            </View>
+          </View>
+        </View>
+
+        {/* Winning/Losing Claims */}
+        {claimOutcomeStats && (
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>🎯 Most Common Quick Play Outcomes</Text>
+            <View style={styles.statsTable}>
+              {(() => {
+                const winningEntries = Object.entries(claimOutcomeStats.winning);
+                const losingEntries = Object.entries(claimOutcomeStats.losing);
+                const topWinning = winningEntries.length > 0 
+                  ? winningEntries.sort((a, b) => b[1] - a[1])[0]
+                  : null;
+                const topLosing = losingEntries.length > 0
+                  ? losingEntries.sort((a, b) => b[1] - a[1])[0]
+                  : null;
+
+                return (
+                  <>
+                    <View style={styles.statRow}>
+                      <Text style={styles.statLabel}>Top Winning Claim</Text>
+                      <Text style={styles.statCountLarge}>
+                        {topWinning ? `${getRollLabel(topWinning[0])} (${topWinning[1]}×)` : 'N/A'}
+                      </Text>
+                    </View>
+                    <View style={styles.statRow}>
+                      <Text style={styles.statLabel}>Top Losing Claim</Text>
+                      <Text style={styles.statCountLarge}>
+                        {topLosing ? `${getRollLabel(topLosing[0])} (${topLosing[1]}×)` : 'N/A'}
+                      </Text>
+                    </View>
+                  </>
+                );
+              })()}
+            </View>
+          </View>
+        )}
+
+        {/* Bluff Call Accuracy */}
+        {behaviorStats?.bluffCalls && (
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>🎲 Bluff Call Accuracy (Global)</Text>
+            <View style={styles.statsTable}>
+              <View style={styles.statRow}>
+                <Text style={styles.statLabel}>Your Accuracy</Text>
+                <Text style={styles.statCountLarge}>
+                  {(behaviorStats.bluffCalls.player.accuracy * 100).toFixed(1)}%
+                </Text>
+              </View>
+              <View style={styles.statRow}>
+                <Text style={styles.statLabel}>Rival Accuracy</Text>
+                <Text style={styles.statCountLarge}>
+                  {(behaviorStats.bluffCalls.rival.accuracy * 100).toFixed(1)}%
+                </Text>
+              </View>
+            </View>
+          </View>
+        )}
+
+        {/* Rival Behavior */}
+        {behaviorStats?.rival && (
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>🤖 The Rival&apos;s Behavior (Global)</Text>
+            <View style={styles.statsTable}>
+              <View style={styles.statRow}>
+                <Text style={styles.statLabel}>Truth Rate</Text>
+                <Text style={styles.statCountLarge}>
+                  {(behaviorStats.rival.truthRate * 100).toFixed(1)}%
+                </Text>
+              </View>
+              <View style={styles.statRow}>
+                <Text style={styles.statLabel}>Total Bluffs Attempted</Text>
+                <Text style={styles.statCountLarge}>
+                  {behaviorStats.rival.bluffs}
+                </Text>
+              </View>
+              <View style={styles.statRow}>
+                <Text style={styles.statLabel}>Bluff Success Rate</Text>
+                <Text style={styles.statCountLarge}>
+                  {(behaviorStats.rival.bluffSuccessRate * 100).toFixed(1)}%
+                </Text>
+              </View>
+            </View>
+          </View>
+        )}
+
+        {/* Player Honesty & Aggression */}
+        {metaStats && (
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>📊 Your Behavior & Aggression</Text>
+            <View style={styles.statsTable}>
+              <View style={styles.statRow}>
+                <Text style={styles.statLabel}>Honesty Rate</Text>
+                <Text style={styles.statCountLarge}>
+                  {(metaStats.honesty.honestyRate * 100).toFixed(1)}%
+                </Text>
+              </View>
+              <View style={styles.statRow}>
+                <Text style={styles.statLabel}>Truthful Claims</Text>
+                <Text style={styles.statCountLarge}>
+                  {metaStats.honesty.truthful}
+                </Text>
+              </View>
+              <View style={styles.statRow}>
+                <Text style={styles.statLabel}>Bluff Claims</Text>
+                <Text style={styles.statCountLarge}>
+                  {metaStats.honesty.bluffs}
+                </Text>
+              </View>
+              <View style={styles.statRow}>
+                <Text style={styles.statLabel}>Your Aggression Index</Text>
+                <Text style={styles.statCountLarge}>
+                  {metaStats.aggression.player.index.toFixed(1)}/100
+                </Text>
+              </View>
+              <View style={styles.statRow}>
+                <Text style={styles.statLabel}>Rival Aggression Index</Text>
+                <Text style={styles.statCountLarge}>
+                  {metaStats.aggression.rival.index.toFixed(1)}/100
+                </Text>
+              </View>
+            </View>
+          </View>
+        )}
+
+        {/* Safest & Most Dangerous Claims */}
+        {metaStats?.claimsRisk && (
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>⚠️ Claim Risk Analysis</Text>
+            <View style={styles.statsTable}>
+              {metaStats.claimsRisk.safest ? (
+                <View style={styles.statRow}>
+                  <Text style={styles.statLabel}>Safest Claim</Text>
+                  <Text style={styles.statCountLarge}>
+                    {getRollLabel(metaStats.claimsRisk.safest.code)} ({(metaStats.claimsRisk.safest.winRate * 100).toFixed(1)}% win rate)
+                  </Text>
+                </View>
+              ) : (
+                <View style={styles.statRow}>
+                  <Text style={styles.statLabel}>Safest Claim</Text>
+                  <Text style={styles.noDataText}>Not enough data (need 5+ uses)</Text>
+                </View>
+              )}
+              {metaStats.claimsRisk.mostDangerous ? (
+                <View style={styles.statRow}>
+                  <Text style={styles.statLabel}>Most Dangerous Claim</Text>
+                  <Text style={styles.statCountLarge}>
+                    {getRollLabel(metaStats.claimsRisk.mostDangerous.code)} ({(metaStats.claimsRisk.mostDangerous.winRate * 100).toFixed(1)}% win rate)
+                  </Text>
+                </View>
+              ) : (
+                <View style={styles.statRow}>
+                  <Text style={styles.statLabel}>Most Dangerous Claim</Text>
+                  <Text style={styles.noDataText}>Not enough data (need 5+ uses)</Text>
+                </View>
+              )}
+            </View>
+          </View>
+        )}
+
+        {/* Roll Rarity Highlights */}
+        {metaStats?.rollRarity && metaStats.rollRarity.totalRolls > 0 && (
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>🎲 Roll Rarity (Observed vs Expected)</Text>
+            <View style={styles.statsTable}>
+              {['21', '31', '41', '66', '65', '11'].map((code) => {
+                const rollData = metaStats.rollRarity.rolls[code];
+                if (!rollData) return null;
+
+                return (
+                  <View key={code} style={styles.statRow}>
+                    <Text style={styles.statLabel}>{getRollLabel(code)}</Text>
+                    <View style={styles.statValues}>
+                      <Text style={styles.statCount}>{rollData.observed.toFixed(2)}%</Text>
+                      <Text style={styles.statPercent}>
+                        (exp: {rollData.expected.toFixed(2)}%)
+                      </Text>
+                    </View>
+                  </View>
+                );
+              })}
+            </View>
+          </View>
+        )}
+      </ScrollView>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#0B3A26',
+    alignItems: 'center',
+    justifyContent: 'flex-start',
+    paddingTop: 40,
+    paddingHorizontal: 16,
+  },
+  title: {
+    fontSize: 28,
+    fontWeight: '700',
+    color: '#E6FFE6',
+    marginBottom: 4,
+    textAlign: 'center',
+  },
+  subtitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#E0B50C',
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  scrollView: {
+    flex: 1,
+    width: '100%',
+  },
+  scrollContent: {
+    paddingBottom: 20,
+  },
+  card: {
+    backgroundColor: '#115E38',
+    borderRadius: 12,
+    padding: 20,
+    marginBottom: 16,
+    width: '100%',
+    maxWidth: 600,
+    alignSelf: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  cardTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#E6FFE6',
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  bigNumber: {
+    fontSize: 48,
+    fontWeight: '700',
+    color: '#0FA958',
+    textAlign: 'center',
+  },
+  statsTable: {
+    marginTop: 8,
+  },
+  statRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(230, 255, 230, 0.1)',
+  },
+  statLabel: {
+    fontSize: 16,
+    color: '#E6FFE6',
+    fontWeight: '600',
+    flex: 1,
+  },
+  statValues: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  statCount: {
+    fontSize: 16,
+    color: '#0FA958',
+    fontWeight: '700',
+    minWidth: 50,
+    textAlign: 'right',
+  },
+  statPercent: {
+    fontSize: 14,
+    color: '#CCCCCC',
+    minWidth: 70,
+    textAlign: 'right',
+  },
+  noDataText: {
+    fontSize: 14,
+    color: '#CCCCCC',
+    textAlign: 'center',
+    fontStyle: 'italic',
+    marginTop: 8,
+  },
+  backButton: {
+    backgroundColor: '#C21807',
+    borderRadius: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 24,
+    marginTop: 16,
+    marginBottom: 24,
+    width: '100%',
+    maxWidth: 300,
+    alignSelf: 'center',
+  },
+  backButtonPressed: {
+    opacity: 0.7,
+  },
+  backButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    fontSize: 16,
+    color: '#E6FFE6',
+    marginTop: 16,
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 32,
+  },
+  errorTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#FF3B30',
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  errorText: {
+    fontSize: 16,
+    color: '#E6FFE6',
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  backButtonTop: {
+    position: 'absolute',
+    top: 16,
+    left: 16,
+    zIndex: 10,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+  },
+  backButtonTopText: {
+    fontSize: 16,
+    color: '#0FA958',
+    fontWeight: '600',
+  },
+  statCountLarge: {
+    fontSize: 24,
+    color: '#0FA958',
+    fontWeight: '700',
+  },
+});

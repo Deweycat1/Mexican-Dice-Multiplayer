@@ -6,16 +6,16 @@ import type { DicePair } from '../engine/mexican';
 import { loadBestStreak, saveBestStreak } from './survivalStorage';
 
 import {
-  categorizeClaim,
-  claimMatchesRoll,
-  compareClaims,
-  isAlwaysClaimable,
-  isLegalRaise,
-  isMexican,
-  isReverseOf,
-  nextHigherClaim,
-  normalizeRoll,
-  resolveBluff
+    categorizeClaim,
+    claimMatchesRoll,
+    compareClaims,
+    isAlwaysClaimable,
+    isLegalRaise,
+    isMexican,
+    isReverseOf,
+    nextHigherClaim,
+    normalizeRoll,
+    resolveBluff
 } from '../engine/mexican';
 import { formatCallBluffMessage } from '../utils/narration';
 
