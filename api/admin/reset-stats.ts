@@ -56,7 +56,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       // Survival stats
       'survival:globalBest',
       'survival:totalRuns',
-      'survival:sumStreaks',
+      'survival:totalStreaks',
       
       // Claim outcome stats
       'stats:claims:winning',
