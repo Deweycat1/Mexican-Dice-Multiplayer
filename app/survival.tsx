@@ -86,6 +86,7 @@ export default function Survival() {
   const fieryFlashAnim = useRef(new Animated.Value(0)).current;
   const alarmFlashAnim = useRef(new Animated.Value(0)).current;
   const electricJoltAnim = useRef(new Animated.Value(0)).current;
+  const electricJoltOpacityAnim = useRef(new Animated.Value(0)).current;
   const vortexPulseAnim = useRef(new Animated.Value(0)).current;
 
   const {
@@ -465,6 +466,8 @@ export default function Survival() {
       
       // Electric jolt/jitter effect
       electricJoltAnim.setValue(0);
+      electricJoltOpacityAnim.setValue(0);
+      
       const jitterSequence = [];
       for (let i = 0; i < 8; i += 1) {
         jitterSequence.push(
@@ -479,13 +482,19 @@ export default function Survival() {
         Animated.timing(electricJoltAnim, { toValue: 0, duration: 40, useNativeDriver: true })
       );
       Animated.sequence(jitterSequence).start();
+      
+      // Opacity flash for cyan overlay
+      Animated.sequence([
+        Animated.timing(electricJoltOpacityAnim, { toValue: 0.25, duration: 80, useNativeDriver: true }),
+        Animated.timing(electricJoltOpacityAnim, { toValue: 0, duration: 320, useNativeDriver: true }),
+      ]).start();
 
       // Show celebration overlay
       setCelebrationTitle('⚡ THIRTY-FIVE! This run is illegal in several countries.');
       setCelebrationMode('35');
       setCelebrationVisible(true);
     }
-  }, [currentStreak, hasShown35, electricJoltAnim]);
+  }, [currentStreak, hasShown35, electricJoltAnim, electricJoltOpacityAnim]);
 
   // 40-streak milestone (Dark vortex pulse + slow-mo)
   useEffect(() => {
@@ -913,10 +922,6 @@ export default function Survival() {
           styles.screenOverlay,
           {
             transform: [{ translateX: electricJoltAnim }],
-            opacity: electricJoltAnim.interpolate({
-              inputRange: [-10, 0, 10],
-              outputRange: [0.25, 0, 0.25],
-            }),
           },
         ]}
         pointerEvents="none"
@@ -926,6 +931,7 @@ export default function Survival() {
             styles.screenOverlay,
             {
               backgroundColor: '#00FFFF',
+              opacity: electricJoltOpacityAnim,
             },
           ]}
         />
