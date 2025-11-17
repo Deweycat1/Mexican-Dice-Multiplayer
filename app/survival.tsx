@@ -18,6 +18,7 @@ import FeltBackground from '../src/components/FeltBackground';
 import FireworksOverlay from '../src/components/FireworksOverlay';
 import ParticleBurst from '../src/components/ParticleBurst';
 import StreakCelebrationOverlay from '../src/components/StreakCelebrationOverlay';
+import StreakEndPopup from '../src/components/StreakEndPopup';
 import StyledButton from '../src/components/StyledButton';
 import { isAlwaysClaimable, meetsOrBeats, splitClaim } from '../src/engine/mexican';
 import { buildClaimOptions } from '../src/lib/claimOptions';
@@ -60,6 +61,9 @@ export default function Survival() {
   const [celebrationVisible, setCelebrationVisible] = useState(false);
   const [celebrationTitle, setCelebrationTitle] = useState('');
   const [celebrationMode, setCelebrationMode] = useState<'5' | '10' | '15' | 'newLeader'>('5');
+
+  // Streak end popup state
+  const [streakEndPopupVisible, setStreakEndPopupVisible] = useState(false);
 
   // Particle burst state
   const [showParticleBurst, setShowParticleBurst] = useState(false);
@@ -221,13 +225,22 @@ export default function Survival() {
   }, [startSurvival, stopSurvival]);
 
   // Reset milestone flags when streak resets or survival restarts
+  const prevStreakForReset = useRef(currentStreak);
   useEffect(() => {
+    // Detect streak end (went from positive to 0)
+    if (prevStreakForReset.current > 0 && currentStreak === 0) {
+      // Show ominous streak-end popup
+      setStreakEndPopupVisible(true);
+    }
+    
     if (currentStreak === 0) {
       setHasShown5(false);
       setHasShown10(false);
       setHasShown15(false);
       setHasShownNewLeader(false);
     }
+    
+    prevStreakForReset.current = currentStreak;
   }, [currentStreak]);
 
   // Micro +1 streak animation (fires on every streak increment)
@@ -654,6 +667,12 @@ export default function Survival() {
         title={celebrationTitle}
         mode={celebrationMode}
         onHide={() => setCelebrationVisible(false)}
+      />
+      
+      {/* Streak End Popup (Ominous) */}
+      <StreakEndPopup
+        visible={streakEndPopupVisible}
+        onHide={() => setStreakEndPopupVisible(false)}
       />
       
       {/* Particle Burst */}
