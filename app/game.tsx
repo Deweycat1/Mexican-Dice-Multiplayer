@@ -27,7 +27,7 @@ import { useGameStore } from '../src/state/useGameStore';
 // ---------- helpers ----------
 function formatClaim(value: number | null | undefined): string {
   if (typeof value !== 'number' || Number.isNaN(value)) return '—';
-  if (value === 21) return '21 (Mexican 🌮)';
+  if (value === 21) return '21 (Mexican)';
   if (value === 31) return '31 (Reverse)';
   if (value === 41) return '41 (Social)';
   const hi = Math.floor(value / 10);
@@ -90,10 +90,26 @@ export default function Game() {
   const narration = (buildBanner?.() || message || '').trim();
   const lastClaimValue = baselineClaim ?? lastClaim ?? null;
 
+  // Helper component to render claim with inline logo for Mexican
+  const renderClaim = (value: number | null | undefined) => {
+    const text = formatClaim(value);
+    if (value === 21) {
+      return (
+        <>
+          21 (Mexican <Image source={require('../assets/images/mexican-dice-logo.png')} style={{ width: 14, height: 14, marginBottom: -2 }} />)
+        </>
+      );
+    }
+    return text;
+  };
+
   const claimText = useMemo(() => {
-    const claimPart = formatClaim(lastClaimValue);
     const rollPart = formatRoll(lastPlayerRoll);
-    return `Current claim: ${claimPart} | Your roll: ${rollPart}`;
+    return (
+      <>
+        Current claim: {renderClaim(lastClaimValue)} | Your roll: {rollPart}
+      </>
+    );
   }, [lastClaimValue, lastPlayerRoll]);
 
   const [playerHi, playerLo] = facesFromRoll(lastPlayerRoll);
@@ -401,7 +417,11 @@ export default function Game() {
                 {claims && claims.length > 0 ? (
                   [...claims.slice(-2)].reverse().map((h, i) => (
                     <Text key={i} style={styles.historyText} numberOfLines={1}>
-                      {h.type === 'event' ? h.text : `${h.who === 'player' ? 'You' : 'The Rival'} ${h.claim === 41 ? 'rolled' : 'claimed'} ${formatClaim(h.claim)}`}
+                      {h.type === 'event' ? h.text : (
+                        <>
+                          {h.who === 'player' ? 'You' : 'The Rival'} {h.claim === 41 ? 'rolled' : 'claimed'} {renderClaim(h.claim)}
+                        </>
+                      )}
                     </Text>
                   ))
                 ) : (
@@ -523,7 +543,11 @@ export default function Game() {
                     [...claims].reverse().map((h, i) => (
                       <View key={i} style={styles.historyItem}>
                         <Text style={styles.historyItemText}>
-                          {h.type === 'event' ? h.text : `${h.who === 'player' ? 'You' : 'The Rival'} ${h.claim === 41 ? 'rolled' : 'claimed'} ${formatClaim(h.claim)}`}
+                          {h.type === 'event' ? h.text : (
+                            <>
+                              {h.who === 'player' ? 'You' : 'The Rival'} {h.claim === 41 ? 'rolled' : 'claimed'} {renderClaim(h.claim)}
+                            </>
+                          )}
                         </Text>
                       </View>
                     ))

@@ -302,7 +302,7 @@ export default function SecretStatsScreen() {
   const getRollLabel = (roll: string): string => {
     switch (roll) {
       case '21':
-        return '21 (Mexican 🌮)';
+        return '21 (Mexican)';
       case '31':
         return '31 (Reverse)';
       case '41':
