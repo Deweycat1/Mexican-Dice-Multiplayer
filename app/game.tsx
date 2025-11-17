@@ -523,7 +523,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 8,
-    marginTop: 50,
+    marginTop: 75,
   },
   title: {
     color: '#fff',
