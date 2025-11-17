@@ -219,6 +219,36 @@ export const useGameStore = create<Store>((set, get) => {
     }
   };
 
+  // Meta-stats helpers
+  const incrementKV = async (key: string) => {
+    try {
+      await fetch('/api/increment-kv', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key }),
+      });
+    } catch (error) {
+      console.error(`Failed to increment ${key}:`, error);
+    }
+  };
+
+  const trackHonesty = async (truthful: boolean) => {
+    const key = truthful ? 'stats:player:truthfulClaims' : 'stats:player:bluffClaims';
+    void incrementKV(key);
+  };
+
+  const trackAggression = async (who: 'player' | 'rival', aggressive: boolean) => {
+    void incrementKV(`stats:${who}:totalDecisionEvents`);
+    if (aggressive) {
+      void incrementKV(`stats:${who}:aggressiveEvents`);
+    }
+  };
+
+  const trackClaimRisk = async (code: string, won: boolean) => {
+    const suffix = won ? 'wins' : 'losses';
+    void incrementKV(`stats:claims:${code}:${suffix}`);
+  };
+
   const pushSurvivalClaim = (who: Turn, claim: number, actual: number | null | undefined) => {
     const s = get();
     if (s.mode !== 'survival') return;
@@ -309,6 +339,16 @@ export const useGameStore = create<Store>((set, get) => {
           winningClaim: winner === 'player' ? finalClaim : null,
           losingClaim: winner === 'cpu' ? finalClaim : null,
         });
+
+        // Track claim risk: for each claim made in this game, mark it as win/loss
+        // We'll track the last claim of each player
+        if (finalClaim) {
+          // Winner's last claim gets marked as a win
+          void trackClaimRisk(finalClaim, true);
+          
+          // We can also track the loser's last claim if available from history
+          // For simplicity, we'll primarily track the decisive claim
+        }
       }
       // Add point event to normal mode claims history
       pushEvent(finalMessage);
@@ -646,6 +686,15 @@ export const useGameStore = create<Store>((set, get) => {
         bluffWon: false, // We'll update this when the round resolves
       });
 
+      // Track Rival aggression
+      const isBluff = !truth;
+      void trackAggression('rival', isBluff);
+      
+      // Track aggression for high-risk claims (65, 66, 21)
+      if (claim === 65 || claim === 66 || claim === 21) {
+        void trackAggression('rival', true);
+      }
+
       // Update baseline logic: preserve baseline through reverses
       const currentState = get();
       const isReverseClaim = previousClaim != null && isReverseOf(previousClaim, claim);
@@ -879,6 +928,22 @@ export const useGameStore = create<Store>((set, get) => {
       // record player's claim in normal mode
       pushClaim('player', claim, state.lastPlayerRoll);
 
+      // Track honesty: is this claim truthful or a bluff?
+      const playerRoll = state.lastPlayerRoll;
+      if (playerRoll !== null && !Number.isNaN(playerRoll)) {
+        const isTruthful = claim === playerRoll;
+        void trackHonesty(isTruthful);
+        
+        // Track aggression: bluffing is aggressive
+        const isBluff = !isTruthful;
+        void trackAggression('player', isBluff);
+      }
+
+      // Track aggression for high-risk claims (65, 66, 21)
+      if (claim === 65 || claim === 66 || claim === 21) {
+        void trackAggression('player', true);
+      }
+
       // Update baseline logic: preserve baseline through reverses
       const isReverseClaim = isReverseOf(prev, claim);
       const newBaseline = isReverseClaim 
@@ -915,6 +980,11 @@ export const useGameStore = create<Store>((set, get) => {
       set({ isBusy: true });
 
       const caller = state.turn;
+      
+      // Track aggression: calling bluff is an aggressive move
+      const who = caller === 'player' ? 'player' : 'rival';
+      void trackAggression(who, true);
+      
       const result = processCallBluff(caller);
 
       set({ isBusy: false });

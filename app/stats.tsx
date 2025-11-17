@@ -49,6 +49,59 @@ interface BehaviorStats {
   };
 }
 
+interface MetaStats {
+  honesty: {
+    truthful: number;
+    bluffs: number;
+    honestyRate: number;
+  };
+  aggression: {
+    player: {
+      aggressiveEvents: number;
+      totalEvents: number;
+      index: number;
+    };
+    rival: {
+      aggressiveEvents: number;
+      totalEvents: number;
+      index: number;
+    };
+  };
+  claimsRisk: {
+    safest: {
+      code: string;
+      wins: number;
+      losses: number;
+      winRate: number;
+    } | null;
+    mostDangerous: {
+      code: string;
+      wins: number;
+      losses: number;
+      winRate: number;
+    } | null;
+    all: {
+      [code: string]: {
+        wins: number;
+        losses: number;
+        winRate: number;
+        uses: number;
+      };
+    };
+  };
+  rollRarity: {
+    totalRolls: number;
+    rolls: {
+      [code: string]: {
+        count: number;
+        observed: number;
+        expected: number;
+        delta: number;
+      };
+    };
+  };
+}
+
 interface RollStat {
   roll: string;
   label: string;
@@ -89,6 +142,9 @@ export default function StatsScreen() {
   // Behavior stats (rival behavior and bluff calls)
   const [behaviorStats, setBehaviorStats] = useState<BehaviorStats | null>(null);
   
+  // Meta stats (honesty, aggression, claims risk, roll rarity)
+  const [metaStats, setMetaStats] = useState<MetaStats | null>(null);
+  
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);  useEffect(() => {
     const fetchStats = async () => {
@@ -106,7 +162,8 @@ export default function StatsScreen() {
           winsRes,
           claimsRes,
           claimOutcomeRes,
-          behaviorRes
+          behaviorRes,
+          metaRes
         ] = await Promise.all([
           fetch(`${baseUrl}/api/survival-best`, {
             method: 'GET',
@@ -133,6 +190,10 @@ export default function StatsScreen() {
             headers: { 'Content-Type': 'application/json' },
           }),
           fetch(`${baseUrl}/api/behavior-stats`, {
+            method: 'GET',
+            headers: { 'Content-Type': 'application/json' },
+          }),
+          fetch(`${baseUrl}/api/meta-stats`, {
             method: 'GET',
             headers: { 'Content-Type': 'application/json' },
           }),
@@ -168,6 +229,15 @@ export default function StatsScreen() {
           }
         } catch {
           console.log('Behavior stats not available yet');
+        }
+
+        try {
+          if (metaRes.ok) {
+            const metaData: MetaStats = await metaRes.json();
+            setMetaStats(metaData);
+          }
+        } catch {
+          console.log('Meta stats not available yet');
         }
 
         // Set survival stats
@@ -543,6 +613,101 @@ export default function StatsScreen() {
                     {(behaviorStats.rival.bluffSuccessRate * 100).toFixed(1)}%
                   </Text>
                 </View>
+              </View>
+            </View>
+          )}
+
+          {/* Player Honesty & Aggression */}
+          {metaStats && (
+            <View style={styles.card}>
+              <Text style={styles.cardTitle}>📊 Your Behavior & Aggression</Text>
+              <View style={styles.statsTable}>
+                <View style={styles.statRow}>
+                  <Text style={styles.statLabel}>Honesty Rate</Text>
+                  <Text style={styles.statCountLarge}>
+                    {(metaStats.honesty.honestyRate * 100).toFixed(1)}%
+                  </Text>
+                </View>
+                <View style={styles.statRow}>
+                  <Text style={styles.statLabel}>Truthful Claims</Text>
+                  <Text style={styles.statCountLarge}>
+                    {metaStats.honesty.truthful}
+                  </Text>
+                </View>
+                <View style={styles.statRow}>
+                  <Text style={styles.statLabel}>Bluff Claims</Text>
+                  <Text style={styles.statCountLarge}>
+                    {metaStats.honesty.bluffs}
+                  </Text>
+                </View>
+                <View style={styles.statRow}>
+                  <Text style={styles.statLabel}>Your Aggression Index</Text>
+                  <Text style={styles.statCountLarge}>
+                    {metaStats.aggression.player.index.toFixed(1)}/100
+                  </Text>
+                </View>
+                <View style={styles.statRow}>
+                  <Text style={styles.statLabel}>Rival Aggression Index</Text>
+                  <Text style={styles.statCountLarge}>
+                    {metaStats.aggression.rival.index.toFixed(1)}/100
+                  </Text>
+                </View>
+              </View>
+            </View>
+          )}
+
+          {/* Safest & Most Dangerous Claims */}
+          {metaStats?.claimsRisk && (
+            <View style={styles.card}>
+              <Text style={styles.cardTitle}>⚠️ Claim Risk Analysis</Text>
+              <View style={styles.statsTable}>
+                {metaStats.claimsRisk.safest ? (
+                  <View style={styles.statRow}>
+                    <Text style={styles.statLabel}>Safest Claim</Text>
+                    <Text style={styles.statCountLarge}>
+                      {getRollLabel(metaStats.claimsRisk.safest.code)} ({(metaStats.claimsRisk.safest.winRate * 100).toFixed(1)}% win rate)
+                    </Text>
+                  </View>
+                ) : (
+                  <View style={styles.statRow}>
+                    <Text style={styles.statLabel}>Safest Claim</Text>
+                    <Text style={styles.noDataText}>Not enough data (need 5+ uses)</Text>
+                  </View>
+                )}
+                {metaStats.claimsRisk.mostDangerous ? (
+                  <View style={styles.statRow}>
+                    <Text style={styles.statLabel}>Most Dangerous Claim</Text>
+                    <Text style={styles.statCountLarge}>
+                      {getRollLabel(metaStats.claimsRisk.mostDangerous.code)} ({(metaStats.claimsRisk.mostDangerous.winRate * 100).toFixed(1)}% win rate)
+                    </Text>
+                  </View>
+                ) : (
+                  <View style={styles.statRow}>
+                    <Text style={styles.statLabel}>Most Dangerous Claim</Text>
+                    <Text style={styles.noDataText}>Not enough data (need 5+ uses)</Text>
+                  </View>
+                )}
+              </View>
+            </View>
+          )}
+
+          {/* Roll Rarity Highlights */}
+          {metaStats?.rollRarity && metaStats.rollRarity.totalRolls > 0 && (
+            <View style={styles.card}>
+              <Text style={styles.cardTitle}>🎲 Roll Rarity (Observed vs Expected)</Text>
+              <View style={styles.statsTable}>
+                {['21', '31', '41', '66', '65', '11'].map((code) => {
+                  const rollData = metaStats.rollRarity.rolls[code];
+                  if (!rollData) return null;
+                  return (
+                    <View key={code} style={styles.statRow}>
+                      <Text style={styles.statLabel}>{getRollLabel(code)}</Text>
+                      <Text style={styles.statCountLarge}>
+                        {(rollData.observed * 100).toFixed(2)}% (exp: {(rollData.expected * 100).toFixed(2)}%, Δ{rollData.delta >= 0 ? '+' : ''}{(rollData.delta * 100).toFixed(2)}%)
+                      </Text>
+                    </View>
+                  );
+                })}
               </View>
             </View>
           )}

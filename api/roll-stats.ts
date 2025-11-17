@@ -37,6 +37,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       // increment global counter for that roll
       const newValue = await kv.incr(keyForRoll(roll));
+      // also increment total roll counter
+      await kv.incr('rollStats:total');
       return res.status(200).json({ roll, count: newValue });
     }
 
