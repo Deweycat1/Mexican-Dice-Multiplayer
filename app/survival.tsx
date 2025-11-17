@@ -48,9 +48,9 @@ function facesFromRoll(value: number | null | undefined): readonly [number | nul
 export default function Survival() {
   const router = useRouter();
   
-  // Calculate particle burst center position (50% - 100px)
+  // Calculate particle burst center position (50% - 50px)
   const screenWidth = Dimensions.get('window').width;
-  const particleBurstCenterX = (screenWidth / 2) - 100;
+  const particleBurstCenterX = (screenWidth / 2) - 50;
   
   const [claimPickerOpen, setClaimPickerOpen] = useState(false);
   const [rollingAnim, setRollingAnim] = useState(false);
