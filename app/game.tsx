@@ -310,23 +310,23 @@ export default function Game() {
       <FeltBackground>
         <SafeAreaView style={styles.safe}>
           <View style={styles.content}>
-            {/* DIALOG BANNER */}
-            {dialogVisible && dialogSpeaker && dialogLine && (
-              <Animated.View
-                style={{
-                  opacity: dialogOpacity,
-                  transform: [{ translateY: dialogTranslateY }],
-                }}
-              >
-                <DialogBanner
-                  speaker={dialogSpeaker}
-                  text={dialogLine}
-                />
-              </Animated.View>
-            )}
-
             {/* HEADER */}
             <View style={styles.headerCard}>
+              {/* DIALOG BANNER - positioned absolutely within header */}
+              {dialogVisible && dialogSpeaker && dialogLine && (
+                <Animated.View
+                  style={{
+                    opacity: dialogOpacity,
+                    transform: [{ translateY: dialogTranslateY }],
+                  }}
+                >
+                  <DialogBanner
+                    speaker={dialogSpeaker}
+                    text={dialogLine}
+                  />
+                </Animated.View>
+              )}
+
               {/* Top row: Player avatar, title, Rival avatar */}
               <View style={styles.headerRow}>
                 {/* Player Column */}
@@ -559,6 +559,7 @@ const styles = StyleSheet.create({
     paddingBottom: 20,
   },
   headerCard: {
+    position: 'relative',
     backgroundColor: '#115E38',
     borderRadius: 14,
     padding: 14,

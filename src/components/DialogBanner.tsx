@@ -38,17 +38,19 @@ export default function DialogBanner({ speaker, text }: DialogBannerProps) {
 
 const styles = StyleSheet.create({
   dialogContainer: {
+    position: 'absolute',
+    top: 70,
+    left: 18,
+    right: 18,
     flexDirection: 'row',
     paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: 12,
-    backgroundColor: 'rgba(17, 94, 56, 0.95)',
+    paddingVertical: 8,
+    borderRadius: 10,
+    backgroundColor: 'rgba(17, 94, 56, 0.98)',
     borderWidth: 1,
-    borderColor: 'rgba(224, 181, 12, 0.3)',
+    borderColor: 'rgba(224, 181, 12, 0.4)',
     alignItems: 'center',
-    marginHorizontal: 18,
-    marginTop: 8,
-    marginBottom: 4,
+    zIndex: 1000,
   },
   dialogSpeaker: {
     flexDirection: 'row',
