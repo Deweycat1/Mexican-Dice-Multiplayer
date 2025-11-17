@@ -17,6 +17,14 @@ interface ClaimStatsData {
   claims: Record<string, number>;
 }
 
+interface PlayerTendenciesData {
+  honestyRating: number | null;
+  mostCommonRoll: string | null;
+  coldestRoll: string | null;
+  averageTurnLengthMs: number | null;
+  lowRollLieRate: number | null;
+}
+
 interface RollStat {
   roll: string;
   label: string;
@@ -31,7 +39,7 @@ interface ClaimStat {
   percentage: number;
 }
 
-type StatView = 'menu' | 'rolls' | 'claims';
+type StatView = 'menu' | 'rolls' | 'claims' | 'tendencies';
 
 
 export default function StatsScreen() {
@@ -46,6 +54,9 @@ export default function StatsScreen() {
   const [claimStats, setClaimStats] = useState<ClaimStat[]>([]);
   const [totalClaims, setTotalClaims] = useState<number>(0);
   
+  // Player Tendencies stats
+  const [tendencies, setTendencies] = useState<PlayerTendenciesData | null>(null);
+  
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);  useEffect(() => {
     const fetchStats = async () => {
@@ -56,12 +67,16 @@ export default function StatsScreen() {
         const baseUrl = typeof window !== 'undefined' ? window.location.origin : '';
         
         // Fetch all APIs in parallel
-        const [rollsRes, claimsRes] = await Promise.all([
+        const [rollsRes, claimsRes, tendenciesRes] = await Promise.all([
           fetch(`${baseUrl}/api/roll-stats`, {
             method: 'GET',
             headers: { 'Content-Type': 'application/json' },
           }),
           fetch(`${baseUrl}/api/claim-stats`, {
+            method: 'GET',
+            headers: { 'Content-Type': 'application/json' },
+          }),
+          fetch(`${baseUrl}/api/player-tendencies`, {
             method: 'GET',
             headers: { 'Content-Type': 'application/json' },
           }),
@@ -72,6 +87,12 @@ export default function StatsScreen() {
 
         const rollsData: RollStatsData = await rollsRes.json();
         const claimsData: ClaimStatsData = await claimsRes.json();
+        
+        // Player tendencies might fail if no data yet
+        if (tendenciesRes.ok) {
+          const tendenciesData: PlayerTendenciesData = await tendenciesRes.json();
+          setTendencies(tendenciesData);
+        }
 
         // Process roll statistics
         const rolls = rollsData.rolls || {};
@@ -238,6 +259,15 @@ export default function StatsScreen() {
         </Pressable>
 
         <Pressable
+          onPress={() => setCurrentView('tendencies')}
+          style={({ pressed }) => [styles.menuButton, pressed && styles.menuButtonPressed]}
+        >
+          <Text style={styles.menuButtonIcon}>🎯</Text>
+          <Text style={styles.menuButtonTitle}>Player Tendencies</Text>
+          <Text style={styles.menuButtonDesc}>A snapshot of how you really play Mexican Dice</Text>
+        </Pressable>
+
+        <Pressable
           onPress={() => router.back()}
           style={({ pressed }) => [styles.backButton, pressed && styles.backButtonPressed]}
         >
@@ -322,6 +352,88 @@ export default function StatsScreen() {
     </View>
   );
 
+  // Player Tendencies view
+  const renderTendencies = () => {
+    const formatTurnLength = (ms: number | null): string => {
+      if (ms === null) return '—';
+      const seconds = ms / 1000;
+      return `${seconds.toFixed(1)}s`;
+    };
+
+    const formatPercentage = (value: number | null): string => {
+      if (value === null) return '—';
+      return `${value.toFixed(0)}%`;
+    };
+
+    const formatRoll = (roll: string | null): string => {
+      if (roll === null) return '—';
+      return getRollLabel(roll);
+    };
+
+    return (
+      <View style={styles.container}>
+        <Pressable onPress={() => setCurrentView('menu')} style={styles.backButtonTop}>
+          <Text style={styles.backButtonTopText}>← Back</Text>
+        </Pressable>
+        
+        <Text style={styles.title}>Player Tendencies</Text>
+        <Text style={styles.subtitle}>A snapshot of how you really play Mexican Dice</Text>
+
+        <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
+          {tendencies === null ? (
+            <View style={styles.card}>
+              <Text style={styles.noDataText}>
+                Play a few games to unlock your Player Tendencies stats!
+              </Text>
+            </View>
+          ) : (
+            <>
+              <View style={styles.card}>
+                <Text style={styles.cardTitle}>🎭 Honesty Rating</Text>
+                <Text style={styles.bigNumber}>{formatPercentage(tendencies.honestyRating)}</Text>
+                <Text style={styles.tendencyDescription}>
+                  How often you tell the truth instead of bluffing
+                </Text>
+              </View>
+
+              <View style={styles.card}>
+                <Text style={styles.cardTitle}>🎲 Most Common Roll</Text>
+                <Text style={styles.bigNumber}>{formatRoll(tendencies.mostCommonRoll)}</Text>
+                <Text style={styles.tendencyDescription}>
+                  Your most frequently rolled combo
+                </Text>
+              </View>
+
+              <View style={styles.card}>
+                <Text style={styles.cardTitle}>❄️ Coldest Roll</Text>
+                <Text style={styles.bigNumber}>{formatRoll(tendencies.coldestRoll)}</Text>
+                <Text style={styles.tendencyDescription}>
+                  The roll that almost never shows up for you
+                </Text>
+              </View>
+
+              <View style={styles.card}>
+                <Text style={styles.cardTitle}>⏱️ Average Turn Length</Text>
+                <Text style={styles.bigNumber}>{formatTurnLength(tendencies.averageTurnLengthMs)}</Text>
+                <Text style={styles.tendencyDescription}>
+                  How long you typically take to make a move
+                </Text>
+              </View>
+
+              <View style={styles.card}>
+                <Text style={styles.cardTitle}>🃏 Low-Roll Lie Rate</Text>
+                <Text style={styles.bigNumber}>{formatPercentage(tendencies.lowRollLieRate)}</Text>
+                <Text style={styles.tendencyDescription}>
+                  How often you bluff when you roll 43 or lower
+                </Text>
+              </View>
+            </>
+          )}
+        </ScrollView>
+      </View>
+    );
+  };
+
   if (isLoading) {
     return (
       <View style={styles.container}>
@@ -365,6 +477,8 @@ export default function StatsScreen() {
       return renderRolls();
     case 'claims':
       return renderClaims();
+    case 'tendencies':
+      return renderTendencies();
     default:
       return renderMenu();
   }
@@ -385,6 +499,15 @@ const styles = StyleSheet.create({
     color: '#E6FFE6',
     marginBottom: 16,
     textAlign: 'center',
+  },
+  subtitle: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#CCCCCC',
+    marginBottom: 16,
+    marginTop: -8,
+    textAlign: 'center',
+    fontStyle: 'italic',
   },
   scrollView: {
     flex: 1,
@@ -592,5 +715,12 @@ const styles = StyleSheet.create({
     fontSize: 24,
     color: '#0FA958',
     fontWeight: '700',
+  },
+  tendencyDescription: {
+    fontSize: 13,
+    color: '#CCCCCC',
+    textAlign: 'center',
+    marginTop: 8,
+    fontStyle: 'italic',
   },
 });

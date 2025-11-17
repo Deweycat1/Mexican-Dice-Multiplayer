@@ -67,6 +67,9 @@ export type Store = {
   mustBluff: boolean;
   message: string;
   mexicanFlashNonce: number;
+  
+  // Turn timing tracking
+  playerTurnStartTime: number | null;
 
   // Recent score-change history (FIFO oldest->newest)
   history: { text: string; who: 'player' | 'cpu' }[];
@@ -247,6 +250,34 @@ export const useGameStore = create<Store>((set, get) => {
   const trackClaimRisk = async (code: string, won: boolean) => {
     const suffix = won ? 'wins' : 'losses';
     void incrementKV(`stats:claims:${code}:${suffix}`);
+  };
+
+  // Track turn timing for Player Tendencies
+  const recordTurnDuration = async (durationMs: number) => {
+    try {
+      await fetch('/api/player-tendencies', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'turn', durationMs }),
+      });
+    } catch (error) {
+      console.error('Failed to record turn duration:', error);
+    }
+  };
+
+  // Track low-roll bluff behavior for Player Tendencies
+  const recordLowRollBehavior = async (actualRoll: number, wasBluff: boolean) => {
+    try {
+      if (actualRoll <= 43) {
+        await fetch('/api/player-tendencies', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ type: 'lowRoll', actualRoll, wasBluff }),
+        });
+      }
+    } catch (error) {
+      console.error('Failed to record low-roll behavior:', error);
+    }
   };
 
   const pushSurvivalClaim = (who: Turn, claim: number, actual: number | null | undefined) => {
@@ -755,6 +786,9 @@ export const useGameStore = create<Store>((set, get) => {
     mustBluff: false,
     message: 'Welcome to Mexican 🌮 Dice!',
     mexicanFlashNonce: 0,
+    
+    // Turn timing tracking
+    playerTurnStartTime: null,
 
   turnLock: false,
   isBusy: false,
@@ -785,6 +819,7 @@ export const useGameStore = create<Store>((set, get) => {
         mustBluff: false,
         message: 'New game — good luck!',
         history: [],
+        playerTurnStartTime: null,
         // DO NOT reset claims[] - preserve history across games in Quick Play
         survivalPlayerScore: STARTING_SCORE,
         survivalCpuScore: STARTING_SCORE,
@@ -816,6 +851,9 @@ export const useGameStore = create<Store>((set, get) => {
 
       // Record roll statistics (async, non-blocking)
       void recordRollStat(actual);
+      
+      // Start timing player's turn
+      const turnStartTime = Date.now();
 
       set((prev) => ({
         lastPlayerRoll: actual,
@@ -825,6 +863,7 @@ export const useGameStore = create<Store>((set, get) => {
           ? `You rolled ${actual}. Claim it or choose a bluff.`
           : `You rolled ${actual}. You must bluff with a higher claim (21 or 31 are always available).`,
         mexicanFlashNonce: actual === 21 ? Date.now() : prev.mexicanFlashNonce,
+        playerTurnStartTime: turnStartTime,
       }));
 
       endTurnLock();
@@ -853,6 +892,12 @@ export const useGameStore = create<Store>((set, get) => {
 
       // Record claim statistics (async, non-blocking)
       void recordClaimStat(claim);
+      
+      // Record turn duration if we have a start time
+      if (state.playerTurnStartTime !== null) {
+        const turnDuration = Date.now() - state.playerTurnStartTime;
+        void recordTurnDuration(turnDuration);
+      }
 
       if (pendingCpuRaise) {
         settlePendingCpuRaise(false);
@@ -951,6 +996,9 @@ export const useGameStore = create<Store>((set, get) => {
         // Track aggression: bluffing is aggressive
         const isBluff = !isTruthful;
         void trackAggression('player', isBluff);
+        
+        // Track low-roll bluff behavior (for Player Tendencies)
+        void recordLowRollBehavior(playerRoll, isBluff);
       }
 
       // Track aggression for high-risk claims (65, 66, 21)
@@ -985,6 +1033,12 @@ export const useGameStore = create<Store>((set, get) => {
     callBluff: () => {
       const state = get();
       if (state.gameOver || state.turnLock) return;
+      
+      // Record turn duration if we have a start time and it's player's turn
+      if (state.turn === 'player' && state.playerTurnStartTime !== null) {
+        const turnDuration = Date.now() - state.playerTurnStartTime;
+        void recordTurnDuration(turnDuration);
+      }
 
       if (state.turn === 'player' && pendingCpuRaise) {
         settlePendingCpuRaise(true);
