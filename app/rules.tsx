@@ -99,7 +99,7 @@ export default function RulesScreen() {
         </Text>
 
         <Text style={styles.body}>
-          <Image source={require('../assets/images/mexican-dice-logo.png')} style={{ width: 16, height: 16, marginBottom: -2 }} /> 21 &ldquo;Mexican&rdquo;: Claiming a Mexican makes the round worth 2 points. The next player must either accept
+          <Image source={require('../assets/images/mexican-dice-logo.png')} style={{ width: 18, height: 18, marginBottom: -2 }} /> 21 &ldquo;Mexican&rdquo;: Claiming a Mexican makes the round worth 2 points. The next player must either accept
           the challenge and roll for a real 21, or Call Bluff. Whoever is wrong — caller or claimer — loses 2 points.
           Reverses do not reduce the penalty.
         </Text>
@@ -119,7 +119,7 @@ export default function RulesScreen() {
         </Text>
         <Text style={styles.body}>
           If a bluff is suspected, the player can Call Bluff rather than accepting the roll. In normal rounds, if the claim was truthful, the caller loses 1 point;
-          if it was a bluff, the liar loses 1 point. In Mexican <Image source={require('../assets/images/mexican-dice-logo.png')} style={{ width: 16, height: 16, marginBottom: -2 }} /> rounds, the loser always loses 2 points. Everyone starts with 5 points; hit 0 and you&apos;re out.
+          if it was a bluff, the liar loses 1 point. In Mexican <Image source={require('../assets/images/mexican-dice-logo.png')} style={{ width: 18, height: 18, marginBottom: -2 }} /> rounds, the loser always loses 2 points. Everyone starts with 5 points; hit 0 and you&apos;re out.
         </Text>
 
         </View>

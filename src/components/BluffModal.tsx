@@ -24,7 +24,7 @@ const renderClaim = (value: number) => {
   if (value === 21) {
     return (
       <>
-        21 (Mexican <Image source={require('../../assets/images/mexican-dice-logo.png')} style={{ width: 14, height: 14, marginBottom: -2 }} />)
+        21 (Mexican <Image source={require('../../assets/images/mexican-dice-logo.png')} style={{ width: 16, height: 16, marginBottom: -2 }} />)
       </>
     );
   }
