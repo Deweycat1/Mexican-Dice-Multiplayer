@@ -152,51 +152,9 @@ export default function Game() {
   const prevPlayerScore = useRef(playerScore);
   const prevCpuScore = useRef(cpuScore);
 
-  // Trigger score loss animation when scores decrease
-  useEffect(() => {
-    const prevScore = prevPlayerScore.current;
-    if (playerScore < prevScore) {
-      // Player lost points - trigger animation
-      userScoreAnim.setValue(0);
-      Animated.sequence([
-        Animated.timing(userScoreAnim, {
-          toValue: 1,
-          duration: 180,
-          useNativeDriver: true,
-        }),
-        Animated.timing(userScoreAnim, {
-          toValue: 0,
-          duration: 180,
-          useNativeDriver: true,
-        }),
-      ]).start();
-    }
-    prevPlayerScore.current = playerScore;
-  }, [playerScore, userScoreAnim]);
-
-  useEffect(() => {
-    const prevScore = prevCpuScore.current;
-    if (cpuScore < prevScore) {
-      // Rival lost points - trigger animation
-      rivalScoreAnim.setValue(0);
-      Animated.sequence([
-        Animated.timing(rivalScoreAnim, {
-          toValue: 1,
-          duration: 180,
-          useNativeDriver: true,
-        }),
-        Animated.timing(rivalScoreAnim, {
-          toValue: 0,
-          duration: 180,
-          useNativeDriver: true,
-        }),
-      ]).start();
-    }
-    prevCpuScore.current = cpuScore;
-  }, [cpuScore, rivalScoreAnim]);
-
   // Dialog system function
   const showDialog = useCallback((speaker: Speaker, line: string) => {
+    console.log('showDialog called:', speaker, line);
     setDialogSpeaker(speaker);
     setDialogLine(line);
     setDialogVisible(true);
@@ -220,24 +178,69 @@ export default function Game() {
     });
   }, [dialogAnim]);
 
-  // Trigger dialog on score changes
+  // Combined effect for player score changes (animation + dialog)
   useEffect(() => {
     const prevScore = prevPlayerScore.current;
-    if (playerScore < prevScore && prevScore > 0 && playerScore >= 0) {
-      // Player lost points - rival speaks
+    
+    if (playerScore < prevScore && prevScore > 0) {
+      // Player lost points
+      console.log('Player lost point:', prevScore, '->', playerScore);
+      
+      // Trigger score animation
+      userScoreAnim.setValue(0);
+      Animated.sequence([
+        Animated.timing(userScoreAnim, {
+          toValue: 1,
+          duration: 180,
+          useNativeDriver: true,
+        }),
+        Animated.timing(userScoreAnim, {
+          toValue: 0,
+          duration: 180,
+          useNativeDriver: true,
+        }),
+      ]).start();
+      
+      // Rival speaks
       const line = pickRandomLine(rivalPointWinLines);
+      console.log('Rival says:', line);
       showDialog('rival', line);
     }
-  }, [playerScore, showDialog]);
+    
+    prevPlayerScore.current = playerScore;
+  }, [playerScore, userScoreAnim, showDialog]);
 
+  // Combined effect for CPU score changes (animation + dialog)
   useEffect(() => {
     const prevScore = prevCpuScore.current;
-    if (cpuScore < prevScore && prevScore > 0 && cpuScore >= 0) {
-      // Rival lost points - user speaks
+    
+    if (cpuScore < prevScore && prevScore > 0) {
+      // CPU lost points
+      console.log('CPU lost point:', prevScore, '->', cpuScore);
+      
+      // Trigger score animation
+      rivalScoreAnim.setValue(0);
+      Animated.sequence([
+        Animated.timing(rivalScoreAnim, {
+          toValue: 1,
+          duration: 180,
+          useNativeDriver: true,
+        }),
+        Animated.timing(rivalScoreAnim, {
+          toValue: 0,
+          duration: 180,
+          useNativeDriver: true,
+        }),
+      ]).start();
+      
+      // User speaks
       const line = pickRandomLine(userPointWinLines);
+      console.log('User says:', line);
       showDialog('user', line);
     }
-  }, [cpuScore, showDialog]);
+    
+    prevCpuScore.current = cpuScore;
+  }, [cpuScore, rivalScoreAnim, showDialog]);
 
   function handleRollOrClaim() {
     if (controlsDisabled) return;
