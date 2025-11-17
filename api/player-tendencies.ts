@@ -102,8 +102,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           await kv.incr('stats:player:totalTurns');
         }
       } else if (type === 'lowRoll') {
-        // Track low-roll bluff behavior
-        if (typeof actualRoll === 'number' && actualRoll <= 43) {
+        // Track low-roll bluff behavior (below 61)
+        if (typeof actualRoll === 'number' && actualRoll < 61) {
           await kv.incr('stats:player:lowRollOpportunities');
           if (wasBluff === true) {
             await kv.incr('stats:player:lowRollBluffs');

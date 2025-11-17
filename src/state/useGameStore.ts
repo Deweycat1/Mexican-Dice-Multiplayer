@@ -268,7 +268,7 @@ export const useGameStore = create<Store>((set, get) => {
   // Track low-roll bluff behavior for Player Tendencies
   const recordLowRollBehavior = async (actualRoll: number, wasBluff: boolean) => {
     try {
-      if (actualRoll <= 43) {
+      if (actualRoll < 61) {
         await fetch('/api/player-tendencies', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },

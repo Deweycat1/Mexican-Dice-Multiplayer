@@ -424,7 +424,7 @@ export default function StatsScreen() {
                 <Text style={styles.cardTitle}>🃏 Low-Roll Lie Rate</Text>
                 <Text style={styles.bigNumber}>{formatPercentage(tendencies.lowRollLieRate)}</Text>
                 <Text style={styles.tendencyDescription}>
-                  How often you bluff when you roll 43 or lower
+                  How often you bluff when you roll below a 61
                 </Text>
               </View>
             </>
