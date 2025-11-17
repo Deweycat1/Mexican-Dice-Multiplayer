@@ -51,6 +51,10 @@ export default function Game() {
   const [showFireworks, setShowFireworks] = useState(false);
   const [historyModalOpen, setHistoryModalOpen] = useState(false);
 
+  // Score loss animation values
+  const userScoreAnim = useRef(new Animated.Value(0)).current;
+  const rivalScoreAnim = useRef(new Animated.Value(0)).current;
+
   const {
     playerScore,
     cpuScore,
@@ -135,6 +139,51 @@ export default function Game() {
     setShowFireworks(true);
   }, [mexicanFlashNonce]);
 
+  // Track previous scores to detect losses
+  const prevPlayerScore = useRef(playerScore);
+  const prevCpuScore = useRef(cpuScore);
+
+  // Trigger score loss animation when scores decrease
+  useEffect(() => {
+    if (playerScore < prevPlayerScore.current) {
+      // Player lost points - trigger animation
+      userScoreAnim.setValue(0);
+      Animated.sequence([
+        Animated.timing(userScoreAnim, {
+          toValue: 1,
+          duration: 180,
+          useNativeDriver: true,
+        }),
+        Animated.timing(userScoreAnim, {
+          toValue: 0,
+          duration: 180,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    }
+    prevPlayerScore.current = playerScore;
+  }, [playerScore, userScoreAnim]);
+
+  useEffect(() => {
+    if (cpuScore < prevCpuScore.current) {
+      // Rival lost points - trigger animation
+      rivalScoreAnim.setValue(0);
+      Animated.sequence([
+        Animated.timing(rivalScoreAnim, {
+          toValue: 1,
+          duration: 180,
+          useNativeDriver: true,
+        }),
+        Animated.timing(rivalScoreAnim, {
+          toValue: 0,
+          duration: 180,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    }
+    prevCpuScore.current = cpuScore;
+  }, [cpuScore, rivalScoreAnim]);
+
   function handleRollOrClaim() {
     if (controlsDisabled) return;
 
@@ -170,6 +219,27 @@ export default function Game() {
     setClaimPickerOpen(false);
   }
 
+  // Animated interpolations for score loss animation
+  const userScoreScale = userScoreAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [1, 1.25],
+  });
+
+  const rivalScoreScale = rivalScoreAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [1, 1.25],
+  });
+
+  const userScoreTranslateY = userScoreAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, -4],
+  });
+
+  const rivalScoreTranslateY = rivalScoreAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, -4],
+  });
+
   return (
     <View style={styles.root}>
       <FeltBackground>
@@ -184,9 +254,18 @@ export default function Game() {
                   <View style={styles.avatarCircle}>
                     <Text style={styles.avatarEmoji}>😇</Text>
                   </View>
-                  <Text style={styles.playerScoreLabel}>
-                    You: {playerScore}
-                  </Text>
+                  <Animated.View
+                    style={{
+                      transform: [
+                        { scale: userScoreScale },
+                        { translateY: userScoreTranslateY },
+                      ],
+                    }}
+                  >
+                    <Text style={styles.playerScoreLabel}>
+                      You: {playerScore}
+                    </Text>
+                  </Animated.View>
                 </View>
 
                 {/* Title Column */}
@@ -206,9 +285,18 @@ export default function Game() {
                   <View style={styles.avatarCircle}>
                     <Text style={styles.avatarEmoji}>👹</Text>
                   </View>
-                  <Text style={styles.playerScoreLabel}>
-                    Rival: {cpuScore}
-                  </Text>
+                  <Animated.View
+                    style={{
+                      transform: [
+                        { scale: rivalScoreScale },
+                        { translateY: rivalScoreTranslateY },
+                      ],
+                    }}
+                  >
+                    <Text style={styles.playerScoreLabel}>
+                      Rival: {cpuScore}
+                    </Text>
+                  </Animated.View>
                 </View>
               </View>
 
@@ -422,16 +510,20 @@ const styles = StyleSheet.create({
     fontSize: 32,
   },
   playerScoreLabel: {
-    color: '#E6FFE6',
-    fontWeight: '700',
-    fontSize: 13,
+    color: '#FFFFFF',
+    fontWeight: '800',
+    fontSize: 18,
     textAlign: 'center',
+    textShadowColor: 'rgba(0,0,0,0.4)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
   },
   titleColumn: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 8,
+    marginTop: 50,
   },
   title: {
     color: '#fff',
