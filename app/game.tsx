@@ -177,17 +177,42 @@ export default function Game() {
           <View style={styles.content}>
             {/* HEADER */}
             <View style={styles.headerCard}>
-              <View style={styles.titleRow}>
-                <Text style={styles.title}>Mexican</Text>
-                <Image
-                  source={require('../assets/images/mexican-dice-logo.png')}
-                  style={styles.logoImage}
-                />
-                <Text style={styles.title}>Dice</Text>
+              {/* Top row: Player avatar, title, Rival avatar */}
+              <View style={styles.headerRow}>
+                {/* Player Column */}
+                <View style={styles.playerColumn}>
+                  <View style={styles.avatarCircle}>
+                    <Text style={styles.avatarEmoji}>😇</Text>
+                  </View>
+                  <Text style={styles.playerScoreLabel}>
+                    You: {playerScore}
+                  </Text>
+                </View>
+
+                {/* Title Column */}
+                <View style={styles.titleColumn}>
+                  <View style={styles.titleRow}>
+                    <Text style={styles.title}>Mexican</Text>
+                    <Image
+                      source={require('../assets/images/mexican-dice-logo.png')}
+                      style={styles.logoImage}
+                    />
+                    <Text style={styles.title}>Dice</Text>
+                  </View>
+                </View>
+
+                {/* Rival Column */}
+                <View style={styles.playerColumn}>
+                  <View style={styles.avatarCircle}>
+                    <Text style={styles.avatarEmoji}>👹</Text>
+                  </View>
+                  <Text style={styles.playerScoreLabel}>
+                    Rival: {cpuScore}
+                  </Text>
+                </View>
               </View>
-              <Text style={styles.scoreLine}>
-                You: {playerScore} | The Rival: {cpuScore}
-              </Text>
+
+              {/* Status text below */}
               <Text style={styles.subtle}>{claimText}</Text>
               <Text style={styles.status} numberOfLines={2}>
                 {narration || 'Ready to roll.'}
@@ -371,29 +396,58 @@ const styles = StyleSheet.create({
     padding: 14,
     marginTop: 8,
   },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  playerColumn: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    minWidth: 70,
+  },
+  avatarCircle: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    borderWidth: 2,
+    borderColor: '#E0B50C',
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 6,
+  },
+  avatarEmoji: {
+    fontSize: 32,
+  },
+  playerScoreLabel: {
+    color: '#E6FFE6',
+    fontWeight: '700',
+    fontSize: 13,
+    textAlign: 'center',
+  },
+  titleColumn: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 8,
+  },
   title: {
     color: '#fff',
     fontWeight: '800',
-    fontSize: 28,
-    marginBottom: 4,
+    fontSize: 24,
     textAlign: 'center',
   },
   titleRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 4,
   },
   logoImage: {
-    width: 32,
-    height: 32,
-    marginHorizontal: 8,
-  },
-  scoreLine: {
-    color: '#E6FFE6',
-    fontWeight: '600',
-    marginBottom: 2,
-    textAlign: 'center',
+    width: 28,
+    height: 28,
+    marginHorizontal: 6,
   },
   subtle: {
     color: '#E0B50C',
