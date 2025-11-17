@@ -551,9 +551,13 @@ export const useGameStore = create<Store>((set, get) => {
       useEmDash: false,
     });
 
-    // Add Survival Mode history entry when Rival incorrectly calls player's bluff
-    if (state.mode === 'survival' && caller === 'cpu' && prevBy === 'player' && defenderToldTruth) {
-      pushSurvivalEvent('Rival called your bluff incorrectly.');
+    // Add history entry when Rival incorrectly calls player's bluff
+    if (caller === 'cpu' && prevBy === 'player' && defenderToldTruth) {
+      if (state.mode === 'survival') {
+        pushSurvivalEvent('Rival called your bluff incorrectly.');
+      } else if (state.mode === 'normal') {
+        pushEvent('Rival called your bluff incorrectly.');
+      }
     }
 
     const result = applyLoss(loser, lossAmount, message);
