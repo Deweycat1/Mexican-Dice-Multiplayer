@@ -1,7 +1,7 @@
 // app/game.tsx
 import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Animated,
   Image,
@@ -14,12 +14,14 @@ import {
 } from 'react-native';
 
 import BluffModal from '../src/components/BluffModal';
+import DialogBanner from '../src/components/DialogBanner';
 import Dice from '../src/components/Dice';
 import FeltBackground from '../src/components/FeltBackground';
 import FireworksOverlay from '../src/components/FireworksOverlay';
 import StyledButton from '../src/components/StyledButton';
 import { isAlwaysClaimable, meetsOrBeats, splitClaim } from '../src/engine/mexican';
 import { buildClaimOptions } from '../src/lib/claimOptions';
+import { pickRandomLine, rivalPointWinLines, userPointWinLines } from '../src/lib/dialogLines';
 import { useGameStore } from '../src/state/useGameStore';
 
 // ---------- helpers ----------
@@ -54,6 +56,13 @@ export default function Game() {
   // Score loss animation values
   const userScoreAnim = useRef(new Animated.Value(0)).current;
   const rivalScoreAnim = useRef(new Animated.Value(0)).current;
+
+  // Dialog system
+  type Speaker = 'user' | 'rival';
+  const [dialogSpeaker, setDialogSpeaker] = useState<Speaker | null>(null);
+  const [dialogLine, setDialogLine] = useState<string | null>(null);
+  const [dialogVisible, setDialogVisible] = useState(false);
+  const dialogAnim = useRef(new Animated.Value(0)).current;
 
   const {
     playerScore,
@@ -184,6 +193,48 @@ export default function Game() {
     prevCpuScore.current = cpuScore;
   }, [cpuScore, rivalScoreAnim]);
 
+  // Dialog system function
+  const showDialog = useCallback((speaker: Speaker, line: string) => {
+    setDialogSpeaker(speaker);
+    setDialogLine(line);
+    setDialogVisible(true);
+
+    dialogAnim.setValue(0);
+    Animated.timing(dialogAnim, {
+      toValue: 1,
+      duration: 220,
+      useNativeDriver: true,
+    }).start(() => {
+      // Auto hide after delay
+      setTimeout(() => {
+        Animated.timing(dialogAnim, {
+          toValue: 0,
+          duration: 220,
+          useNativeDriver: true,
+        }).start(() => {
+          setDialogVisible(false);
+        });
+      }, 3500);
+    });
+  }, [dialogAnim]);
+
+  // Trigger dialog on score changes
+  useEffect(() => {
+    if (playerScore < prevPlayerScore.current && prevPlayerScore.current <= 5) {
+      // Player lost points - rival speaks (but not during initial game setup)
+      const line = pickRandomLine(rivalPointWinLines);
+      showDialog('rival', line);
+    }
+  }, [playerScore, showDialog]);
+
+  useEffect(() => {
+    if (cpuScore < prevCpuScore.current && prevCpuScore.current <= 5) {
+      // Rival lost points - user speaks (but not during initial game setup)
+      const line = pickRandomLine(userPointWinLines);
+      showDialog('user', line);
+    }
+  }, [cpuScore, showDialog]);
+
   function handleRollOrClaim() {
     if (controlsDisabled) return;
 
@@ -240,11 +291,33 @@ export default function Game() {
     outputRange: [0, -4],
   });
 
+  // Dialog animation interpolations
+  const dialogOpacity = dialogAnim;
+  const dialogTranslateY = dialogAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [-10, 0],
+  });
+
   return (
     <View style={styles.root}>
       <FeltBackground>
         <SafeAreaView style={styles.safe}>
           <View style={styles.content}>
+            {/* DIALOG BANNER */}
+            {dialogVisible && dialogSpeaker && dialogLine && (
+              <Animated.View
+                style={{
+                  opacity: dialogOpacity,
+                  transform: [{ translateY: dialogTranslateY }],
+                }}
+              >
+                <DialogBanner
+                  speaker={dialogSpeaker}
+                  text={dialogLine}
+                />
+              </Animated.View>
+            )}
+
             {/* HEADER */}
             <View style={styles.headerCard}>
               {/* Top row: Player avatar, title, Rival avatar */}
