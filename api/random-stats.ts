@@ -11,12 +11,15 @@ const ALL_ROLLS = [
   '66',
 ];
 
-type PlayerTendenciesResponse = {
+type RandomStatsResponse = {
   honestyRating: number | null;       // percentage 0–100
   mostCommonRoll: string | null;      // e.g., "53"
   coldestRoll: string | null;         // e.g., "32"
   averageTurnLengthMs: number | null; // raw ms
   lowRollLieRate: number | null;      // percentage 0–100
+  diceMathMatches: number | null;     // count of transitions with shared digit
+  diceMathTransitions: number | null; // total consecutive roll pairs
+  diceMathRate: number | null;        // percentage 0–100
 };
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -79,12 +82,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         ? (lowRollBluffs / lowRollOpportunities) * 100 
         : null;
 
-      const response: PlayerTendenciesResponse = {
+      // 6. Dice Math
+      const diceMathMatches = (await kv.get<number>('stats:player:diceMathMatches')) ?? 0;
+      const diceMathTransitions = (await kv.get<number>('stats:player:diceMathTransitions')) ?? 0;
+      const diceMathRate = diceMathTransitions > 0
+        ? (diceMathMatches / diceMathTransitions) * 100
+        : null;
+
+      const response: RandomStatsResponse = {
         honestyRating,
         mostCommonRoll,
         coldestRoll,
         averageTurnLengthMs,
         lowRollLieRate,
+        diceMathMatches: diceMathTransitions > 0 ? diceMathMatches : null,
+        diceMathTransitions: diceMathTransitions > 0 ? diceMathTransitions : null,
+        diceMathRate,
       };
 
       return res.status(200).json(response);

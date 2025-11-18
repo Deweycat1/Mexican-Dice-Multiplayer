@@ -17,12 +17,15 @@ interface ClaimStatsData {
   claims: Record<string, number>;
 }
 
-interface PlayerTendenciesData {
+interface RandomStatsData {
   honestyRating: number | null;
   mostCommonRoll: string | null;
   coldestRoll: string | null;
   averageTurnLengthMs: number | null;
   lowRollLieRate: number | null;
+  diceMathMatches: number | null;
+  diceMathTransitions: number | null;
+  diceMathRate: number | null;
 }
 
 interface RollStat {
@@ -39,7 +42,7 @@ interface ClaimStat {
   percentage: number;
 }
 
-type StatView = 'menu' | 'rolls' | 'claims' | 'tendencies';
+type StatView = 'menu' | 'rolls' | 'claims' | 'randomStats';
 
 
 export default function StatsScreen() {
@@ -54,8 +57,8 @@ export default function StatsScreen() {
   const [claimStats, setClaimStats] = useState<ClaimStat[]>([]);
   const [totalClaims, setTotalClaims] = useState<number>(0);
   
-  // Player Tendencies stats
-  const [tendencies, setTendencies] = useState<PlayerTendenciesData | null>(null);
+  // Random Stats (formerly Player Tendencies)
+  const [randomStats, setRandomStats] = useState<RandomStatsData | null>(null);
   
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);  useEffect(() => {
@@ -67,7 +70,7 @@ export default function StatsScreen() {
         const baseUrl = typeof window !== 'undefined' ? window.location.origin : '';
         
         // Fetch all APIs in parallel
-        const [rollsRes, claimsRes, tendenciesRes] = await Promise.all([
+        const [rollsRes, claimsRes, randomStatsRes] = await Promise.all([
           fetch(`${baseUrl}/api/roll-stats`, {
             method: 'GET',
             headers: { 'Content-Type': 'application/json' },
@@ -76,7 +79,7 @@ export default function StatsScreen() {
             method: 'GET',
             headers: { 'Content-Type': 'application/json' },
           }),
-          fetch(`${baseUrl}/api/player-tendencies`, {
+          fetch(`${baseUrl}/api/random-stats`, {
             method: 'GET',
             headers: { 'Content-Type': 'application/json' },
           }),
@@ -88,10 +91,10 @@ export default function StatsScreen() {
         const rollsData: RollStatsData = await rollsRes.json();
         const claimsData: ClaimStatsData = await claimsRes.json();
         
-        // Player tendencies might fail if no data yet
-        if (tendenciesRes.ok) {
-          const tendenciesData: PlayerTendenciesData = await tendenciesRes.json();
-          setTendencies(tendenciesData);
+        // Random stats might fail if no data yet
+        if (randomStatsRes.ok) {
+          const randomStatsData: RandomStatsData = await randomStatsRes.json();
+          setRandomStats(randomStatsData);
         }
 
         // Process roll statistics
@@ -259,12 +262,12 @@ export default function StatsScreen() {
         </Pressable>
 
         <Pressable
-          onPress={() => setCurrentView('tendencies')}
+          onPress={() => setCurrentView('randomStats')}
           style={({ pressed }) => [styles.menuButton, pressed && styles.menuButtonPressed]}
         >
           <Text style={styles.menuButtonIcon}>🎯</Text>
-          <Text style={styles.menuButtonTitle}>Player Tendencies</Text>
-          <Text style={styles.menuButtonDesc}>A snapshot of how you really play Mexican Dice</Text>
+          <Text style={styles.menuButtonTitle}>Random Stats</Text>
+          <Text style={styles.menuButtonDesc}>Little mysteries hiding in your dice rolls</Text>
         </Pressable>
 
         <Pressable
@@ -352,8 +355,8 @@ export default function StatsScreen() {
     </View>
   );
 
-  // Player Tendencies view
-  const renderTendencies = () => {
+  // Random Stats view (formerly Player Tendencies)
+  const renderRandomStats = () => {
     const formatTurnLength = (ms: number | null): string => {
       if (ms === null) return '—';
       const seconds = ms / 1000;
@@ -370,27 +373,34 @@ export default function StatsScreen() {
       return getRollLabel(roll);
     };
 
+    const formatDiceMath = (stats: RandomStatsData | null): string => {
+      if (stats === null || stats.diceMathRate === null || stats.diceMathMatches === null) {
+        return 'Not enough data yet';
+      }
+      return `${stats.diceMathMatches} matches (${stats.diceMathRate.toFixed(0)}%)`;
+    };
+
     return (
       <View style={styles.container}>
         <Pressable onPress={() => setCurrentView('menu')} style={styles.backButtonTop}>
           <Text style={styles.backButtonTopText}>← Back</Text>
         </Pressable>
         
-        <Text style={styles.title}>Player Tendencies</Text>
-        <Text style={styles.subtitle}>A snapshot of how you really play Mexican Dice</Text>
+        <Text style={styles.title}>Random Stats</Text>
+        <Text style={styles.subtitle}>Little mysteries hiding in your dice rolls</Text>
 
         <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
-          {tendencies === null ? (
+          {randomStats === null ? (
             <View style={styles.card}>
               <Text style={styles.noDataText}>
-                Play a few games to unlock your Player Tendencies stats!
+                Play a few games to unlock your Random Stats!
               </Text>
             </View>
           ) : (
             <>
               <View style={styles.card}>
                 <Text style={styles.cardTitle}>🎭 Honesty Rating</Text>
-                <Text style={styles.bigNumber}>{formatPercentage(tendencies.honestyRating)}</Text>
+                <Text style={styles.bigNumber}>{formatPercentage(randomStats.honestyRating)}</Text>
                 <Text style={styles.tendencyDescription}>
                   How often you tell the truth instead of bluffing
                 </Text>
@@ -398,7 +408,7 @@ export default function StatsScreen() {
 
               <View style={styles.card}>
                 <Text style={styles.cardTitle}>🎲 Most Common Roll</Text>
-                <Text style={styles.bigNumber}>{formatRoll(tendencies.mostCommonRoll)}</Text>
+                <Text style={styles.bigNumber}>{formatRoll(randomStats.mostCommonRoll)}</Text>
                 <Text style={styles.tendencyDescription}>
                   Your most frequently rolled combo
                 </Text>
@@ -406,7 +416,7 @@ export default function StatsScreen() {
 
               <View style={styles.card}>
                 <Text style={styles.cardTitle}>❄️ Coldest Roll</Text>
-                <Text style={styles.bigNumber}>{formatRoll(tendencies.coldestRoll)}</Text>
+                <Text style={styles.bigNumber}>{formatRoll(randomStats.coldestRoll)}</Text>
                 <Text style={styles.tendencyDescription}>
                   The roll that almost never shows up for you
                 </Text>
@@ -414,7 +424,7 @@ export default function StatsScreen() {
 
               <View style={styles.card}>
                 <Text style={styles.cardTitle}>⏱️ Average Turn Length</Text>
-                <Text style={styles.bigNumber}>{formatTurnLength(tendencies.averageTurnLengthMs)}</Text>
+                <Text style={styles.bigNumber}>{formatTurnLength(randomStats.averageTurnLengthMs)}</Text>
                 <Text style={styles.tendencyDescription}>
                   How long you typically take to make a move
                 </Text>
@@ -422,9 +432,17 @@ export default function StatsScreen() {
 
               <View style={styles.card}>
                 <Text style={styles.cardTitle}>🃏 Low-Roll Lie Rate</Text>
-                <Text style={styles.bigNumber}>{formatPercentage(tendencies.lowRollLieRate)}</Text>
+                <Text style={styles.bigNumber}>{formatPercentage(randomStats.lowRollLieRate)}</Text>
                 <Text style={styles.tendencyDescription}>
                   How often you bluff when you roll below a 61
+                </Text>
+              </View>
+
+              <View style={styles.card}>
+                <Text style={styles.cardTitle}>🧮 Dice Math</Text>
+                <Text style={styles.bigNumber}>{formatDiceMath(randomStats)}</Text>
+                <Text style={styles.tendencyDescription}>
+                  How often one of your dice carries into the next roll
                 </Text>
               </View>
             </>
@@ -477,8 +495,8 @@ export default function StatsScreen() {
       return renderRolls();
     case 'claims':
       return renderClaims();
-    case 'tendencies':
-      return renderTendencies();
+    case 'randomStats':
+      return renderRandomStats();
     default:
       return renderMenu();
   }

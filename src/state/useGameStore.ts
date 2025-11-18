@@ -252,10 +252,10 @@ export const useGameStore = create<Store>((set, get) => {
     void incrementKV(`stats:claims:${code}:${suffix}`);
   };
 
-  // Track turn timing for Player Tendencies
+  // Track turn timing for Random Stats
   const recordTurnDuration = async (durationMs: number) => {
     try {
-      await fetch('/api/player-tendencies', {
+      await fetch('/api/random-stats', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ type: 'turn', durationMs }),
@@ -265,11 +265,11 @@ export const useGameStore = create<Store>((set, get) => {
     }
   };
 
-  // Track low-roll bluff behavior for Player Tendencies
+  // Track low-roll bluff behavior for Random Stats
   const recordLowRollBehavior = async (actualRoll: number, wasBluff: boolean) => {
     try {
       if (actualRoll < 61) {
-        await fetch('/api/player-tendencies', {
+        await fetch('/api/random-stats', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ type: 'lowRoll', actualRoll, wasBluff }),
