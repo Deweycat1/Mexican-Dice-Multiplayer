@@ -1,6 +1,9 @@
 import React from 'react';
 import { Image, Modal, Pressable, ScrollView, StyleSheet, Text } from 'react-native';
 
+// Import image at top level to avoid bundler issues on web
+const mexicanLogo = require('../../assets/images/mexican-dice-logo.png');
+
 type Props = {
   visible: boolean;
   options: number[];
@@ -24,7 +27,7 @@ const renderClaim = (value: number) => {
   if (value === 21) {
     return (
       <>
-        21 (Mexican <Image source={require('../../assets/images/mexican-dice-logo.png')} style={{ width: 16, height: 16, marginBottom: -2 }} />)
+        21 (Mexican <Image source={mexicanLogo} style={{ width: 16, height: 16, marginBottom: -2 }} />)
       </>
     );
   }
