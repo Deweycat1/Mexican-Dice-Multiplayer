@@ -98,7 +98,6 @@ export default function Game() {
   const [historyModalOpen, setHistoryModalOpen] = useState(false);
 
   // Rival opening taunt state
-  const [rivalOpeningLine, setRivalOpeningLine] = useState<string>("");
   const [hasRolledThisGame, setHasRolledThisGame] = useState<boolean>(false);
 
   // Score loss animation values
@@ -137,18 +136,6 @@ export default function Game() {
 
   const narration = (buildBanner?.() || message || '').trim();
   const lastClaimValue = baselineClaim ?? lastClaim ?? null;
-
-  // Compute effective status message: show Rival opening taunt before first roll
-  // Show taunt if: no roll has happened this game AND we have a taunt AND no claim exists yet
-  const effectiveNarration = (!hasRolledThisGame && rivalOpeningLine && lastPlayerRoll === null)
-    ? rivalOpeningLine
-    : (narration || 'Ready to roll.');
-
-  // Initialize Rival opening line on mount
-  useEffect(() => {
-    setRivalOpeningLine(pickRandomRivalLine());
-    setHasRolledThisGame(false);
-  }, []);
 
   // Helper component to render claim with inline logo for Mexican
   const renderClaim = (value: number | null | undefined) => {
@@ -318,6 +305,14 @@ export default function Game() {
     prevCpuScore.current = cpuScore;
   }, [cpuScore, rivalScoreAnim, showDialog]);
 
+  // Initialize Rival opening taunt on mount
+  useEffect(() => {
+    const openingLine = pickRandomRivalLine();
+    setHasRolledThisGame(false);
+    // Show opening taunt in dialog banner
+    setTimeout(() => showDialog('rival', openingLine), 500);
+  }, [showDialog]);
+
   function handleRollOrClaim() {
     if (controlsDisabled) return;
 
@@ -466,7 +461,7 @@ export default function Game() {
 
               {/* Status text below */}
               <Text style={styles.status} numberOfLines={2}>
-                {effectiveNarration}
+                {narration || 'Ready to roll.'}
               </Text>
               {showCpuThinking && (
                 <Text style={styles.subtleSmall}>The Rival thinking…</Text>
@@ -553,8 +548,10 @@ export default function Game() {
                   variant="ghost"
                   onPress={() => {
                     newGame();
-                    setRivalOpeningLine(pickRandomRivalLine());
                     setHasRolledThisGame(false);
+                    // Show new opening taunt in dialog banner
+                    const openingLine = pickRandomRivalLine();
+                    setTimeout(() => showDialog('rival', openingLine), 300);
                   }}
                   style={[styles.btn, styles.newGameBtn]}
                 />
