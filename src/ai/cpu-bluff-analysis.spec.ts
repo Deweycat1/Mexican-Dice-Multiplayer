@@ -1,5 +1,5 @@
+import { categorizeClaim, claimMatchesRoll, compareClaims, nextHigherClaim } from '../engine/mexican';
 import { LearningAIDiceOpponent } from './LearningAIOpponent';
-import { compareClaims, nextHigherClaim, categorizeClaim, claimMatchesRoll } from '../engine/mexican';
 
 describe('CPU Bluff Calling Analysis', () => {
   test('CPU bluff-calling rates across multiple scenarios (100 games worth)', () => {
