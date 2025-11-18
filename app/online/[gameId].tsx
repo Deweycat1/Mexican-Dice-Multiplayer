@@ -1,14 +1,17 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, ActivityIndicator, StyleSheet, SafeAreaView, Image } from 'react-native';
-import { useLocalSearchParams } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { supabase } from '../../src/lib/supabase';
-import FeltBackground from '../../src/components/FeltBackground';
+import { useLocalSearchParams } from 'expo-router';
+import React, { useEffect, useState } from 'react';
+import { ActivityIndicator, Image, SafeAreaView, StyleSheet, Text, View } from 'react-native';
+import BluffModal from '../../src/components/BluffModal';
 import Dice from '../../src/components/Dice';
+import FeltBackground from '../../src/components/FeltBackground';
 import { ScoreDie } from '../../src/components/ScoreDie';
 import StyledButton from '../../src/components/StyledButton';
-import { rollDice } from '../../src/engine/onlineRoll';
 import { splitClaim } from '../../src/engine/mexican';
+import { rollDice } from '../../src/engine/onlineRoll';
+import { applyClaim, applyCallBluff, type CoreGameState } from '../../src/engine/onlineActions';
+import { buildClaimOptions } from '../../src/lib/claimOptions';
+import { supabase } from '../../src/lib/supabase';
 
 type OnlineGame = {
   id: string;
@@ -23,6 +26,8 @@ type OnlineGame = {
   current_player: 'player1' | 'player2';
   current_claim: string | null;
   current_roll: string | null;
+  baseline_claim: string | null;
+  last_action: 'normal' | 'reverseVsMexican';
   status: 'waiting' | 'active' | 'finished';
   winner: 'player1' | 'player2' | null;
   created_at: string;
@@ -38,6 +43,7 @@ export default function OnlineMatchScreen() {
   const [myUserId, setMyUserId] = useState<string | null>(null);
   const [myRoll, setMyRoll] = useState<number | null>(null);
   const [isRolling, setIsRolling] = useState(false);
+  const [claimPickerOpen, setClaimPickerOpen] = useState(false);
 
   useEffect(() => {
     const loadGame = async () => {
@@ -179,6 +185,112 @@ export default function OnlineMatchScreen() {
       setMyRoll(null);
     } finally {
       setIsRolling(false);
+    }
+  };
+
+  // Mapper functions to convert between Supabase game row and CoreGameState
+  const mapGameToCoreState = (game: OnlineGame): CoreGameState => ({
+    player1Score: game.player1_score,
+    player2Score: game.player2_score,
+    currentPlayer: game.current_player,
+    currentRoll: game.current_roll,
+    currentClaim: game.current_claim,
+    baselineClaim: game.baseline_claim,
+    lastAction: game.last_action || 'normal',
+    status: game.status === 'finished' ? 'finished' : 'active',
+    winner: game.winner,
+  });
+
+  const mapCoreStateToGameUpdate = (core: CoreGameState) => ({
+    player1_score: core.player1Score,
+    player2_score: core.player2Score,
+    current_player: core.currentPlayer,
+    current_roll: core.currentRoll,
+    current_claim: core.currentClaim,
+    baseline_claim: core.baselineClaim,
+    last_action: core.lastAction,
+    status: core.status,
+    winner: core.winner,
+    updated_at: new Date().toISOString(),
+  });
+
+  // Handle making a claim
+  const handleClaim = async (claimValue: number) => {
+    if (!game || !isMyTurn || !myUserId) return;
+    if (myRoll === null) return; // Must roll before claiming
+
+    try {
+      // Convert game to core state
+      const coreState = mapGameToCoreState(game);
+      
+      // Apply the claim using shared logic
+      const result = applyClaim(coreState, claimValue, myRoll);
+      
+      if (!result.success) {
+        console.error('Claim failed:', result.error);
+        alert(result.error || 'Invalid claim');
+        return;
+      }
+
+      // Update Supabase with new state
+      const updates = mapCoreStateToGameUpdate(result.newState!);
+      const { error: updateError } = await supabase
+        .from('games')
+        .update(updates)
+        .eq('id', game.id);
+
+      if (updateError) {
+        console.error('Error updating claim:', updateError);
+        alert('Failed to update game');
+      } else {
+        // Update local state
+        setGame({ ...game, ...updates });
+        setMyRoll(null); // Clear roll after claiming
+      }
+    } catch (err) {
+      console.error('Unexpected error during claim:', err);
+      alert('An unexpected error occurred');
+    }
+  };
+
+  // Handle calling bluff
+  const handleCallBluff = async () => {
+    if (!game || !isMyTurn || !myUserId) return;
+    if (!game.current_claim) return; // No claim to challenge
+
+    try {
+      // Get the opponent's actual roll from the database
+      // In a real implementation, this should be stored securely
+      // For now, we'll use the current_roll field
+      const opponentRoll = game.current_roll ? parseInt(game.current_roll, 10) : 0;
+      
+      // Convert game to core state
+      const coreState = mapGameToCoreState(game);
+      
+      // Apply the bluff call using shared logic
+      const result = applyCallBluff(coreState, opponentRoll);
+      
+      // Update Supabase with new state (BluffResult always returns newState)
+      const updates = mapCoreStateToGameUpdate(result.newState!);
+      const { error: updateError } = await supabase
+        .from('games')
+        .update(updates)
+        .eq('id', game.id);
+
+      if (updateError) {
+        console.error('Error updating after bluff call:', updateError);
+        alert('Failed to update game');
+      } else {
+        // Update local state
+        setGame({ ...game, ...updates });
+        setMyRoll(null); // Clear roll
+        
+        // Show result message
+        alert(result.message);
+      }
+    } catch (err) {
+      console.error('Unexpected error during bluff call:', err);
+      alert('An unexpected error occurred');
     }
   };
 
@@ -332,12 +444,9 @@ export default function OnlineMatchScreen() {
               <StyledButton
                 label="Call Bluff"
                 variant="primary"
-                onPress={() => {
-                  if (!isMyTurn) return;
-                  console.log('Call Bluff (coming soon)');
-                }}
-                style={[styles.btn, !isMyTurn && styles.disabledButton]}
-                disabled={!isMyTurn}
+                onPress={handleCallBluff}
+                style={[styles.btn, (!isMyTurn || !game.current_claim) && styles.disabledButton]}
+                disabled={!isMyTurn || !game.current_claim}
               />
             </View>
 
@@ -345,12 +454,9 @@ export default function OnlineMatchScreen() {
               <StyledButton
                 label="Bluff Options"
                 variant="outline"
-                onPress={() => {
-                  if (!isMyTurn) return;
-                  console.log('Bluff Options (coming soon)');
-                }}
-                style={[styles.btnWide, !isMyTurn && styles.disabledButton]}
-                disabled={!isMyTurn}
+                onPress={() => setClaimPickerOpen(true)}
+                style={[styles.btnWide, (!isMyTurn || myRoll === null) && styles.disabledButton]}
+                disabled={!isMyTurn || myRoll === null}
               />
             </View>
 
@@ -375,6 +481,25 @@ export default function OnlineMatchScreen() {
               />
             </View>
           </View>
+
+          {/* BLUFF OPTIONS MODAL */}
+          <BluffModal
+            visible={claimPickerOpen}
+            options={game ? buildClaimOptions(
+              game.current_claim ? parseInt(game.current_claim) : null,
+              myRoll || 21
+            ) : []}
+            onCancel={() => setClaimPickerOpen(false)}
+            onSelect={(claimValue) => {
+              setClaimPickerOpen(false);
+              handleClaim(claimValue);
+            }}
+            canShowSocial={myRoll === 41}
+            onShowSocial={() => {
+              setClaimPickerOpen(false);
+              handleClaim(41);
+            }}
+          />
         </View>
       </SafeAreaView>
     </FeltBackground>

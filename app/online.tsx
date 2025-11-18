@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import { useRouter } from 'expo-router';
 import { supabase } from '../src/lib/supabase';
 
 export default function OnlineScreen() {

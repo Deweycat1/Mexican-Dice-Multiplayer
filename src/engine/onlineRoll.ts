@@ -3,7 +3,7 @@
  * Reuses the same engine logic as Quick Play but without AI opponent behavior.
  */
 
-import { normalizeRoll, isAlwaysClaimable, meetsOrBeats } from './mexican';
+import { isAlwaysClaimable, meetsOrBeats, normalizeRoll } from './mexican';
 
 export type RollResult = {
   normalized: number;
