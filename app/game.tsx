@@ -139,9 +139,10 @@ export default function Game() {
   const lastClaimValue = baselineClaim ?? lastClaim ?? null;
 
   // Compute effective status message: show Rival opening taunt before first roll
-  const effectiveNarration = !hasRolledThisGame && rivalOpeningLine
+  // Show taunt if: no roll has happened this game AND we have a taunt AND no claim exists yet
+  const effectiveNarration = (!hasRolledThisGame && rivalOpeningLine && lastPlayerRoll === null)
     ? rivalOpeningLine
-    : narration || 'Ready to roll.';
+    : (narration || 'Ready to roll.');
 
   // Initialize Rival opening line on mount
   useEffect(() => {
