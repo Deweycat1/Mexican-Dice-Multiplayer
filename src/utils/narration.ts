@@ -14,15 +14,15 @@ export function formatCallBluffMessage(opts: {
   } = opts;
 
   const dash = useEmDash ? ' — ' : ' - ';
-  const lossSuffix = `${penalty > 1 ? `${penalty}` : '1'}`;
+  const pointText = penalty === 1 ? 'point' : 'points';
   const possessive = defenderName === 'You' ? 'your' : `${defenderName}'s`;
   const prefix = `${callerName} called ${possessive} bluff! `;
 
   if (defenderToldTruth) {
-    return `${prefix}${defenderName} told the truth${dash}${callerName}-${lossSuffix}`;
+    return `${prefix}${defenderName} told the truth${dash}${callerName} lost ${penalty} ${pointText}`;
   }
 
-  return `${prefix}${defenderName} was bluffing${dash}${defenderName}-${lossSuffix}`;
+  return `${prefix}${defenderName} was bluffing${dash}${defenderName} lost ${penalty} ${pointText}`;
 }
 
 export default formatCallBluffMessage;
