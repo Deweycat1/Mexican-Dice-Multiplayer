@@ -32,6 +32,10 @@ interface WinStatsData {
   cpuWins: number;
 }
 
+interface UniqueDevicesData {
+  count: number;
+}
+
 interface ClaimOutcomeStats {
   winning: Record<string, number>;
   losing: Record<string, number>;
@@ -113,6 +117,7 @@ export default function SecretStatsScreen() {
   const [averageStreak, setAverageStreak] = useState<number | null>(null);
   const [playerWins, setPlayerWins] = useState<number>(0);
   const [cpuWins, setCpuWins] = useState<number>(0);
+  const [uniqueDevices, setUniqueDevices] = useState<number>(0);
   
   // Claim outcome stats (winning/losing claims)
   const [claimOutcomeStats, setClaimOutcomeStats] = useState<ClaimOutcomeStats | null>(null);
@@ -145,6 +150,7 @@ export default function SecretStatsScreen() {
           quickPlayBestRes,
           survivalAvgRes,
           winsRes,
+          uniqueDevicesRes,
           claimOutcomeRes,
           behaviorRes,
           metaRes
@@ -162,6 +168,10 @@ export default function SecretStatsScreen() {
             headers: { 'Content-Type': 'application/json' },
           }),
           fetch(`${baseUrl}/api/win-stats`, {
+            method: 'GET',
+            headers: { 'Content-Type': 'application/json' },
+          }),
+          fetch(`${baseUrl}/api/update-unique-devices`, {
             method: 'GET',
             headers: { 'Content-Type': 'application/json' },
           }),
@@ -188,6 +198,16 @@ export default function SecretStatsScreen() {
         const quickPlayBestData: QuickPlayBestData = await quickPlayBestRes.json();
         const survivalAvgData: SurvivalAverageData = await survivalAvgRes.json();
         const winsData: WinStatsData = await winsRes.json();
+        
+        // Fetch unique devices count (non-critical)
+        try {
+          if (uniqueDevicesRes.ok) {
+            const uniqueDevicesData: UniqueDevicesData = await uniqueDevicesRes.json();
+            setUniqueDevices(uniqueDevicesData.count ?? 0);
+          }
+        } catch {
+          console.log('Unique devices count not available yet');
+        }
         
         // Parse new stats (with error handling)
         try {
@@ -376,6 +396,12 @@ export default function SecretStatsScreen() {
       <Text style={styles.subtitle}>🔒 Hidden Analytics</Text>
 
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>📱 Unique Devices Played</Text>
+          <Text style={styles.bigNumber}>{uniqueDevices.toLocaleString()}</Text>
+          <Text style={styles.cardSubtitle}>Total devices that have opened the game</Text>
+        </View>
+
         <View style={styles.card}>
           <Text style={styles.cardTitle}>🎮 Quick Play - Total Games</Text>
           <Text style={styles.bigNumber}>{totalGames.toLocaleString()}</Text>
@@ -748,6 +774,13 @@ const styles = StyleSheet.create({
     color: '#E6FFE6',
     marginBottom: 12,
     textAlign: 'center',
+  },
+  cardSubtitle: {
+    fontSize: 14,
+    color: '#CCCCCC',
+    textAlign: 'center',
+    marginTop: 8,
+    fontStyle: 'italic',
   },
   bigNumber: {
     fontSize: 48,
