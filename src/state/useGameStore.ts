@@ -359,6 +359,7 @@ export const useGameStore = create<Store>((set, get) => {
       // Quick Play mode - record win if game ends
       if (finished) {
         const winner = other(who); // The winner is the opposite of who lost
+        const loser = who; // who lost the point
         void recordWin(winner);
         
         // Record winning/losing claims for Quick Play
@@ -371,14 +372,27 @@ export const useGameStore = create<Store>((set, get) => {
           losingClaim: winner === 'cpu' ? finalClaim : null,
         });
 
-        // Track claim risk: for each claim made in this game, mark it as win/loss
-        // We'll track the last claim of each player
-        if (finalClaim) {
-          // Winner's last claim gets marked as a win
-          void trackClaimRisk(finalClaim, true);
-          
-          // We can also track the loser's last claim if available from history
-          // For simplicity, we'll primarily track the decisive claim
+        // Track claim risk: Find the last claim made by each player from claims history
+        // This ensures we track both winner's wins and loser's losses
+        const playerLastClaim = state.claims
+          .slice()
+          .reverse()
+          .find((c) => c.type === 'claim' && c.who === 'player');
+        const cpuLastClaim = state.claims
+          .slice()
+          .reverse()
+          .find((c) => c.type === 'claim' && c.who === 'cpu');
+
+        if (winner === 'player' && playerLastClaim && playerLastClaim.type === 'claim') {
+          void trackClaimRisk(String(playerLastClaim.claim), true); // Player won
+        } else if (winner === 'cpu' && cpuLastClaim && cpuLastClaim.type === 'claim') {
+          void trackClaimRisk(String(cpuLastClaim.claim), true); // CPU won
+        }
+
+        if (loser === 'player' && playerLastClaim && playerLastClaim.type === 'claim') {
+          void trackClaimRisk(String(playerLastClaim.claim), false); // Player lost
+        } else if (loser === 'cpu' && cpuLastClaim && cpuLastClaim.type === 'claim') {
+          void trackClaimRisk(String(cpuLastClaim.claim), false); // CPU lost
         }
       }
       // Add point event to normal mode claims history

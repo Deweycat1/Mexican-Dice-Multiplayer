@@ -593,9 +593,9 @@ export default function SecretStatsScreen() {
                   <View key={code} style={styles.statRow}>
                     <Text style={styles.statLabel}>{getRollLabel(code)}</Text>
                     <View style={styles.statValues}>
-                      <Text style={styles.statCount}>{rollData.observed.toFixed(2)}%</Text>
+                      <Text style={styles.statCount}>{(rollData.observed * 100).toFixed(2)}%</Text>
                       <Text style={styles.statPercent}>
-                        (exp: {rollData.expected.toFixed(2)}%)
+                        (exp: {(rollData.expected * 100).toFixed(2)}%)
                       </Text>
                     </View>
                   </View>
