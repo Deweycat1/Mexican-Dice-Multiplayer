@@ -244,21 +244,12 @@ export default function StatsScreen() {
       
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.menuScrollContent}>
         <Pressable
-          onPress={() => setCurrentView('rolls')}
+          onPress={() => router.push('/roll-claim-comparison')}
           style={({ pressed }) => [styles.menuButton, pressed && styles.menuButtonPressed]}
         >
           <Text style={styles.menuButtonIcon}>🎲</Text>
-          <Text style={styles.menuButtonTitle}>Roll Distribution</Text>
-          <Text style={styles.menuButtonDesc}>View stats for all dice rolls</Text>
-        </Pressable>
-
-        <Pressable
-          onPress={() => setCurrentView('claims')}
-          style={({ pressed }) => [styles.menuButton, pressed && styles.menuButtonPressed]}
-        >
-          <Text style={styles.menuButtonIcon}>🗣️</Text>
-          <Text style={styles.menuButtonTitle}>Claim Distribution</Text>
-          <Text style={styles.menuButtonDesc}>See which claims are made most</Text>
+          <Text style={styles.menuButtonTitle}>Roll vs Claim</Text>
+          <Text style={styles.menuButtonDesc}>See how honest the table really is</Text>
         </Pressable>
 
         <Pressable
