@@ -3,14 +3,14 @@ import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Animated,
-  Image,
-  Modal,
-  Pressable,
-  SafeAreaView,
-  StyleSheet,
-  Text,
-  View,
+    Animated,
+    Image,
+    Modal,
+    Pressable,
+    SafeAreaView,
+    StyleSheet,
+    Text,
+    View,
 } from 'react-native';
 
 import BluffModal from '../src/components/BluffModal';
@@ -45,6 +45,49 @@ function facesFromRoll(value: number | null | undefined): readonly [number | nul
   const [hi, lo] = splitClaim(value);
   return [hi, lo] as const;
 }
+
+// Devil/demon themed Rival opening lines
+const rivalOpeningLines = [
+  // Sinister but playful
+  "Welcome to my little hell. You won't like the heat.",
+  "You rolled into the wrong circle today.",
+  "I hope your soul is fireproof.",
+  "Careful. I play with souls the way you play with dice.",
+  "Try not to scream. It distracts me.",
+
+  // Cocky / mocking
+  "Ready to burn through those points?",
+  "Good. I needed a warm up snack.",
+  "I can smell fear. Delicious.",
+  "You brought bravery. Cute. Useless, but cute.",
+  "I love when mortals think they can win.",
+
+  // Dark humor
+  "Relax. Only your pride is at risk. Probably.",
+  "Don't worry. Pain builds character.",
+  "Let's make this quick. I have tormenting to do.",
+  "Losing to me counts as a minor sin.",
+  "If you hear whispering, that is just your doom.",
+
+  // Taunting / tempting
+  "I'll trade you a win for your dignity. Deal?",
+  "Go ahead. Make your first mistake.",
+  "If you win, I'll be shocked. Truly.",
+  "You step into my fire, you get burned.",
+  "Play well. I hate a boring sacrifice.",
+
+  // Mischievous / smart-ass
+  "I sharpened my dice just for you.",
+  "Try not to melt. I like a challenge.",
+  "One roll in and your fate is sealed.",
+  "Feeling brave? Or just flammable?",
+  "Let's see how fast you fall.",
+];
+
+const pickRandomRivalLine = () => {
+  const index = Math.floor(Math.random() * rivalOpeningLines.length);
+  return rivalOpeningLines[index];
+};
 // ------------------------------
 
 export default function Game() {
@@ -53,6 +96,10 @@ export default function Game() {
   const [rollingAnim, setRollingAnim] = useState(false);
   const [showFireworks, setShowFireworks] = useState(false);
   const [historyModalOpen, setHistoryModalOpen] = useState(false);
+
+  // Rival opening taunt state
+  const [rivalOpeningLine, setRivalOpeningLine] = useState<string>("");
+  const [hasRolledThisGame, setHasRolledThisGame] = useState<boolean>(false);
 
   // Score loss animation values
   const userScoreAnim = useRef(new Animated.Value(0)).current;
@@ -90,6 +137,17 @@ export default function Game() {
 
   const narration = (buildBanner?.() || message || '').trim();
   const lastClaimValue = baselineClaim ?? lastClaim ?? null;
+
+  // Compute effective status message: show Rival opening taunt before first roll
+  const effectiveNarration = !hasRolledThisGame && rivalOpeningLine
+    ? rivalOpeningLine
+    : narration || 'Ready to roll.';
+
+  // Initialize Rival opening line on mount
+  useEffect(() => {
+    setRivalOpeningLine(pickRandomRivalLine());
+    setHasRolledThisGame(false);
+  }, []);
 
   // Helper component to render claim with inline logo for Mexican
   const renderClaim = (value: number | null | undefined) => {
@@ -270,6 +328,11 @@ export default function Game() {
 
     if (hasRolled && mustBluff) return;
 
+    // Mark first roll complete to disable intro message
+    if (!hasRolledThisGame) {
+      setHasRolledThisGame(true);
+    }
+
     setRollingAnim(true);
     Haptics.selectionAsync();
     playerRoll();
@@ -402,7 +465,7 @@ export default function Game() {
 
               {/* Status text below */}
               <Text style={styles.status} numberOfLines={2}>
-                {narration || 'Ready to roll.'}
+                {effectiveNarration}
               </Text>
               {showCpuThinking && (
                 <Text style={styles.subtleSmall}>The Rival thinking…</Text>
@@ -487,7 +550,11 @@ export default function Game() {
                 <StyledButton
                   label="New Game"
                   variant="ghost"
-                  onPress={() => newGame()}
+                  onPress={() => {
+                    newGame();
+                    setRivalOpeningLine(pickRandomRivalLine());
+                    setHasRolledThisGame(false);
+                  }}
                   style={[styles.btn, styles.newGameBtn]}
                 />
                 <StyledButton
