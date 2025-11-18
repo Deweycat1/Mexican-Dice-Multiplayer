@@ -60,10 +60,18 @@ export default function OnlineMatchScreen() {
 
       try {
         // Phase 3: Initialize auth to ensure user has session
+        console.log('🔐 Initializing authentication...');
         const user = await initializeAuth();
+        
+        if (!user) {
+          throw new Error('Failed to authenticate with Supabase');
+        }
+        
+        console.log('✅ Authenticated as user:', user.id);
         setMyUserId(user.id);
 
         // Fetch game from Supabase (RLS now enforces access control)
+        console.log('📥 Fetching game data...');
         const { data, error: fetchError } = await supabase
           .from('games')
           .select('*')
@@ -72,7 +80,11 @@ export default function OnlineMatchScreen() {
 
         if (fetchError) {
           console.error('Error loading game:', fetchError);
-          setError('Failed to load match. Please try again.');
+          if (fetchError.code === 'PGRST116') {
+            setError('Match not found or access denied');
+          } else {
+            setError('Failed to load match. Please try again.');
+          }
           setLoading(false);
           return;
         }
@@ -83,16 +95,25 @@ export default function OnlineMatchScreen() {
           return;
         }
 
+        console.log('✅ Game loaded:', data.id);
         setGame(data as OnlineGame);
         
         // Phase 3: Load my current roll from hidden rolls table
+        console.log('🎲 Loading hidden roll...');
         const currentRoll = await getMyCurrentRoll(gameId);
         if (currentRoll) {
+          console.log('✅ Hidden roll found:', currentRoll);
           setMyRoll(currentRoll);
+        } else {
+          console.log('ℹ️ No hidden roll found for this turn');
         }
       } catch (err) {
-        console.error('Unexpected error loading game:', err);
-        setError('An unexpected error occurred');
+        console.error('❌ Unexpected error loading game:', err);
+        if (err instanceof Error && err.message.includes('authenticate')) {
+          setError('Could not authenticate with Supabase. Please check your connection.');
+        } else {
+          setError('An unexpected error occurred');
+        }
       } finally {
         setLoading(false);
       }
@@ -105,24 +126,41 @@ export default function OnlineMatchScreen() {
   useEffect(() => {
     if (!gameId || typeof gameId !== 'string') return;
 
+    console.log(`📡 Setting up Realtime subscription for game: ${gameId}`);
+
     const channel = supabase
       .channel(`game-${gameId}`)
       .on(
         'postgres_changes',
         {
-          event: 'UPDATE',
+          event: '*', // Listen to all events (INSERT, UPDATE, DELETE)
           schema: 'public',
           table: 'games',
           filter: `id=eq.${gameId}`,
         },
         (payload) => {
-          console.log('Real-time update received:', payload);
-          setGame(payload.new as OnlineGame);
+          console.log('📨 Realtime update received:', payload.eventType, payload.new);
+          
+          // Update game state with the new data
+          if (payload.new) {
+            setGame(payload.new as OnlineGame);
+          }
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') {
+          console.log('✅ Realtime subscription active');
+        } else if (status === 'CHANNEL_ERROR') {
+          console.error('❌ Realtime subscription error');
+        } else if (status === 'TIMED_OUT') {
+          console.error('⏱️ Realtime subscription timed out');
+        } else {
+          console.log('📡 Realtime status:', status);
+        }
+      });
 
     return () => {
+      console.log('🔌 Cleaning up Realtime subscription');
       supabase.removeChannel(channel);
     };
   }, [gameId]);
@@ -352,6 +390,8 @@ export default function OnlineMatchScreen() {
       } else {
         // Clear roll after claiming (local state only)
         setMyRoll(null);
+        // Close the claim picker modal
+        setClaimPickerOpen(false);
         // Real-time subscription will update game state
       }
     } catch (err) {
@@ -404,29 +444,47 @@ export default function OnlineMatchScreen() {
   // Loading state
   if (loading) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#E0B50C" />
-        <Text style={styles.loadingText}>Loading match...</Text>
-      </View>
+      <FeltBackground>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#E0B50C" />
+          <Text style={styles.loadingText}>Connecting to your match...</Text>
+        </View>
+      </FeltBackground>
     );
   }
 
   // Error state
   if (error) {
     return (
-      <View style={styles.loadingContainer}>
-        <Text style={styles.errorText}>{error}</Text>
-        <Text style={styles.hintText}>Please go back and try again.</Text>
-      </View>
+      <FeltBackground>
+        <View style={styles.loadingContainer}>
+          <Text style={styles.errorText}>{error}</Text>
+          <Text style={styles.hintText}>Please go back and try again.</Text>
+          <StyledButton
+            label="Back to Menu"
+            variant="primary"
+            onPress={() => router.replace('/')}
+            style={{ marginTop: 20, minWidth: 200 }}
+          />
+        </View>
+      </FeltBackground>
     );
   }
 
   // Not found state
   if (!game) {
     return (
-      <View style={styles.loadingContainer}>
-        <Text style={styles.errorText}>Match not found</Text>
-      </View>
+      <FeltBackground>
+        <View style={styles.loadingContainer}>
+          <Text style={styles.errorText}>Match not found</Text>
+          <StyledButton
+            label="Back to Menu"
+            variant="primary"
+            onPress={() => router.replace('/')}
+            style={{ marginTop: 20, minWidth: 200 }}
+          />
+        </View>
+      </FeltBackground>
     );
   }
 
