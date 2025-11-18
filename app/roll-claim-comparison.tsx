@@ -1,13 +1,13 @@
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
-  ActivityIndicator,
-  FlatList,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
+    ActivityIndicator,
+    FlatList,
+    Pressable,
+    ScrollView,
+    StyleSheet,
+    Text,
+    View,
 } from 'react-native';
 
 interface RollStatsData {
@@ -313,6 +313,14 @@ export default function RollClaimComparisonScreen() {
 
         {/* TODO: Claim Accuracy Section */}
         {/* Add claim accuracy calculation when correct/incorrect claim data becomes available */}
+
+        {/* Bottom Menu Button */}
+        <Pressable
+          onPress={() => router.back()}
+          style={({ pressed }) => [styles.bottomMenuButton, pressed && styles.bottomMenuButtonPressed]}
+        >
+          <Text style={styles.bottomMenuButtonText}>← Back to Menu</Text>
+        </Pressable>
       </ScrollView>
     </View>
   );
@@ -527,5 +535,20 @@ const styles = StyleSheet.create({
     color: 'rgba(255, 255, 255, 0.5)',
     textAlign: 'center',
     paddingVertical: 20,
+  },
+  bottomMenuButton: {
+    backgroundColor: '#0FA958',
+    paddingVertical: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+    marginTop: 24,
+  },
+  bottomMenuButtonPressed: {
+    opacity: 0.7,
+  },
+  bottomMenuButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '700',
   },
 });
