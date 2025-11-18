@@ -20,8 +20,8 @@ const OUT_DURATION = 220;
 
 export default function NarrationBanner({
   text,
-  minShowMs = 1000,
-  maxShowMs = 3000,
+  minShowMs = 1500,
+  maxShowMs = 1500,
   onHeightChange,
 }: Props) {
   const trimmedText = (text ?? '').trim();
