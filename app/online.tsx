@@ -1,9 +1,11 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { useRouter } from 'expo-router';
 import { supabase } from '../src/lib/supabase';
 
 export default function OnlineScreen() {
+  const router = useRouter();
   const [username, setUsername] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [friendUsername, setFriendUsername] = useState('');
@@ -80,9 +82,9 @@ export default function OnlineScreen() {
         return;
       }
 
-      // Success
-      setMessage({ type: 'success', text: `Game created! ID: ${game.id}` });
+      // Success - navigate to match screen
       setFriendUsername('');
+      router.push(`/online/${game.id}` as any);
     } catch (error) {
       console.error('Error starting game:', error);
       setMessage({ type: 'error', text: 'An unexpected error occurred' });
