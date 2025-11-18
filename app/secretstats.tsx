@@ -16,6 +16,13 @@ interface SurvivalBestData {
   state?: string | null;
 }
 
+interface QuickPlayBestData {
+  streak: number;
+  updatedAt: string;
+  city?: string | null;
+  state?: string | null;
+}
+
 interface SurvivalAverageData {
   average: number;
 }
@@ -102,6 +109,7 @@ export default function SecretStatsScreen() {
   
   // Win/Survival stats
   const [survivalBest, setSurvivalBest] = useState<SurvivalBestData | null>(null);
+  const [quickPlayBest, setQuickPlayBest] = useState<QuickPlayBestData | null>(null);
   const [averageStreak, setAverageStreak] = useState<number | null>(null);
   const [playerWins, setPlayerWins] = useState<number>(0);
   const [cpuWins, setCpuWins] = useState<number>(0);
@@ -134,6 +142,7 @@ export default function SecretStatsScreen() {
         // Fetch all relevant APIs
         const [
           survivalBestRes,
+          quickPlayBestRes,
           survivalAvgRes,
           winsRes,
           claimOutcomeRes,
@@ -141,6 +150,10 @@ export default function SecretStatsScreen() {
           metaRes
         ] = await Promise.all([
           fetch(`${baseUrl}/api/survival-best`, {
+            method: 'GET',
+            headers: { 'Content-Type': 'application/json' },
+          }),
+          fetch(`${baseUrl}/api/quickplay-best`, {
             method: 'GET',
             headers: { 'Content-Type': 'application/json' },
           }),
@@ -167,10 +180,12 @@ export default function SecretStatsScreen() {
         ]);
 
         if (!survivalBestRes.ok) throw new Error('Failed to fetch survival best');
+        if (!quickPlayBestRes.ok) throw new Error('Failed to fetch quick play best');
         if (!survivalAvgRes.ok) throw new Error('Failed to fetch survival average');
         if (!winsRes.ok) throw new Error('Failed to fetch win stats');
 
         const survivalBestData: SurvivalBestData = await survivalBestRes.json();
+        const quickPlayBestData: QuickPlayBestData = await quickPlayBestRes.json();
         const survivalAvgData: SurvivalAverageData = await survivalAvgRes.json();
         const winsData: WinStatsData = await winsRes.json();
         
@@ -204,6 +219,7 @@ export default function SecretStatsScreen() {
 
         // Set survival stats
         setSurvivalBest(survivalBestData);
+        setQuickPlayBest(quickPlayBestData);
         setAverageStreak(survivalAvgData.average ?? 0);
 
         // Set win stats
@@ -381,6 +397,39 @@ export default function SecretStatsScreen() {
                 <Text style={styles.statCount}>{cpuWins}</Text>
                 <Text style={styles.statPercent}>({cpuWinRate.toFixed(1)}%)</Text>
               </View>
+            </View>
+          </View>
+        </View>
+
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>🎯 Quick Play – Longest Win Streak</Text>
+          <View style={styles.statsTable}>
+            <View style={styles.statRow}>
+              <Text style={styles.statLabel}>Longest Win Streak</Text>
+              <Text style={styles.statCountLarge}>{quickPlayBest?.streak ?? 0}</Text>
+            </View>
+            <View style={styles.statRow}>
+              <Text style={styles.statLabel}>Record Location</Text>
+              <Text style={styles.statCountLarge}>
+                {quickPlayBest?.city && quickPlayBest?.state
+                  ? `${quickPlayBest.city}, ${quickPlayBest.state}`
+                  : 'Unknown (no location data)'}
+              </Text>
+            </View>
+            <View style={styles.statRow}>
+              <Text style={styles.statLabel}>Record Date & Time</Text>
+              <Text style={styles.statCountSmall}>
+                {quickPlayBest?.updatedAt
+                  ? new Date(quickPlayBest.updatedAt).toLocaleString('en-US', {
+                      month: 'short',
+                      day: 'numeric',
+                      year: 'numeric',
+                      hour: 'numeric',
+                      minute: '2-digit',
+                      hour12: true,
+                    })
+                  : '—'}
+              </Text>
             </View>
           </View>
         </View>
