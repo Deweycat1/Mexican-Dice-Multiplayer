@@ -2,7 +2,6 @@ import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
     ActivityIndicator,
-    FlatList,
     Pressable,
     ScrollView,
     StyleSheet,
@@ -123,6 +122,7 @@ export default function RollClaimComparisonScreen() {
 
   useEffect(() => {
     fetchStats();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const getRollLabel = (roll: string): string => {
@@ -216,14 +216,14 @@ export default function RollClaimComparisonScreen() {
         <Text style={styles.rollCell}>{item.label}</Text>
         
         <View style={styles.dataCell}>
-          <Text style={styles.cellText}>
+          <Text style={[styles.cellText, styles.cellTextRolled]}>
             {item.rollCount} ({item.rollPercentage.toFixed(2)}%)
           </Text>
           <View style={[styles.miniBar, { width: `${Math.min(100, item.rollPercentage * 3)}%` }]} />
         </View>
         
         <View style={styles.dataCell}>
-          <Text style={styles.cellText}>
+          <Text style={[styles.cellText, styles.cellTextClaimed]}>
             {item.claimCount} ({item.claimPercentage.toFixed(2)}%)
           </Text>
           <View style={[styles.miniBar, styles.miniBarClaim, { width: `${Math.min(100, item.claimPercentage * 3)}%` }]} />
@@ -300,15 +300,15 @@ export default function RollClaimComparisonScreen() {
           </View>
 
           {/* Table Body */}
-          <FlatList
-            data={data}
-            renderItem={renderRow}
-            keyExtractor={(item) => item.roll}
-            scrollEnabled={false}
-            ListEmptyComponent={
-              <Text style={styles.noDataText}>No data available yet</Text>
-            }
-          />
+          {data.length > 0 ? (
+            data.map((item) => (
+              <View key={item.roll}>
+                {renderRow({ item })}
+              </View>
+            ))
+          ) : (
+            <Text style={styles.noDataText}>No data available yet</Text>
+          )}
         </View>
 
         {/* TODO: Claim Accuracy Section */}
@@ -444,6 +444,14 @@ const styles = StyleSheet.create({
     color: 'rgba(255, 255, 255, 0.9)',
     textAlign: 'center',
     marginBottom: 4,
+  },
+  cellTextRolled: {
+    color: '#0FA958',
+    fontWeight: '600',
+  },
+  cellTextClaimed: {
+    color: '#E0B50C',
+    fontWeight: '600',
   },
   miniBar: {
     height: 4,
