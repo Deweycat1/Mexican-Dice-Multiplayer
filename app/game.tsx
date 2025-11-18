@@ -610,8 +610,8 @@ const styles = StyleSheet.create({
     fontSize: 32,
   },
   userAvatarImage: {
-    width: 56,
-    height: 56,
+    width: 62,
+    height: 62,
   },
   rivalAvatarImage: {
     width: 56,
