@@ -91,6 +91,32 @@ export default function OnlineMatchScreen() {
     loadGame();
   }, [gameId]);
 
+  // Real-time subscription for game updates
+  useEffect(() => {
+    if (!gameId || typeof gameId !== 'string') return;
+
+    const channel = supabase
+      .channel(`game-${gameId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'games',
+          filter: `id=eq.${gameId}`,
+        },
+        (payload) => {
+          console.log('Real-time update received:', payload);
+          setGame(payload.new as OnlineGame);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [gameId]);
+
   // Mark the current player as joined
   useEffect(() => {
     if (!game || !myUserId) return;
@@ -98,9 +124,10 @@ export default function OnlineMatchScreen() {
     const markJoined = async () => {
       const isPlayer1 = myUserId === game.player1_id;
       const field = isPlayer1 ? 'player1_joined' : 'player2_joined';
+      const alreadyJoined = isPlayer1 ? game.player1_joined : game.player2_joined;
 
-      // If this field is already true in the current game object, do nothing
-      if ((isPlayer1 && game.player1_joined) || (!isPlayer1 && game.player2_joined)) {
+      // If this field is already true, do nothing
+      if (alreadyJoined) {
         return;
       }
 
@@ -111,14 +138,14 @@ export default function OnlineMatchScreen() {
 
       if (updateError) {
         console.error('Error marking player as joined:', updateError);
-      } else {
-        // Update local state to reflect the change
-        setGame({ ...game, [field]: true });
       }
+      // Real-time subscription will update game state
     };
 
     markJoined();
-  }, [game, myUserId]);
+    // Only depend on the specific fields we check, not the entire game object
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [game?.id, game?.player1_joined, game?.player2_joined, myUserId]);
 
   // Auto-activate the game when both players have joined
   useEffect(() => {
@@ -137,15 +164,15 @@ export default function OnlineMatchScreen() {
 
         if (updateError) {
           console.error('Error activating game:', updateError);
-        } else {
-          // Update local state to reflect the change
-          setGame({ ...game, status: 'active' });
         }
+        // Real-time subscription will update game state
       }
     };
 
     maybeActivate();
-  }, [game]);
+    // Only run when join status or game status changes
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [game?.id, game?.status, game?.player1_joined, game?.player2_joined]);
 
   // Handle rolling dice for the current player
   const handleRoll = async () => {
@@ -176,13 +203,13 @@ export default function OnlineMatchScreen() {
       if (updateError) {
         console.error('Error updating roll:', updateError);
         setMyRoll(null); // Revert on error
-      } else {
-        // Update local game state
-        setGame({ ...game, current_roll: rollStr });
+        alert('Failed to save roll');
       }
+      // Real-time subscription will update game state
     } catch (err) {
       console.error('Unexpected error during roll:', err);
       setMyRoll(null);
+      alert('An error occurred while rolling');
     } finally {
       setIsRolling(false);
     }
@@ -243,9 +270,9 @@ export default function OnlineMatchScreen() {
         console.error('Error updating claim:', updateError);
         alert('Failed to update game');
       } else {
-        // Update local state
-        setGame({ ...game, ...updates });
-        setMyRoll(null); // Clear roll after claiming
+        // Clear roll after claiming (local state only)
+        setMyRoll(null);
+        // Real-time subscription will update game state
       }
     } catch (err) {
       console.error('Unexpected error during claim:', err);
@@ -281,12 +308,10 @@ export default function OnlineMatchScreen() {
         console.error('Error updating after bluff call:', updateError);
         alert('Failed to update game');
       } else {
-        // Update local state
-        setGame({ ...game, ...updates });
-        setMyRoll(null); // Clear roll
-        
-        // Show result message
+        // Clear roll and show result
+        setMyRoll(null);
         alert(result.message);
+        // Real-time subscription will update game state
       }
     } catch (err) {
       console.error('Unexpected error during bluff call:', err);
