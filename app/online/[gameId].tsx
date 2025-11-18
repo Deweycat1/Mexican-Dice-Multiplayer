@@ -7,6 +7,8 @@ import FeltBackground from '../../src/components/FeltBackground';
 import Dice from '../../src/components/Dice';
 import { ScoreDie } from '../../src/components/ScoreDie';
 import StyledButton from '../../src/components/StyledButton';
+import { rollDice } from '../../src/engine/onlineRoll';
+import { splitClaim } from '../../src/engine/mexican';
 
 type OnlineGame = {
   id: string;
@@ -34,6 +36,8 @@ export default function OnlineMatchScreen() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [myUserId, setMyUserId] = useState<string | null>(null);
+  const [myRoll, setMyRoll] = useState<number | null>(null);
+  const [isRolling, setIsRolling] = useState(false);
 
   useEffect(() => {
     const loadGame = async () => {
@@ -137,6 +141,47 @@ export default function OnlineMatchScreen() {
     maybeActivate();
   }, [game]);
 
+  // Handle rolling dice for the current player
+  const handleRoll = async () => {
+    if (!game || !isMyTurn || !myUserId || isRolling) return;
+    if (myRoll !== null) return; // Already rolled this turn
+
+    try {
+      setIsRolling(true);
+
+      // Roll the dice using the same logic as Quick Play
+      const { normalized } = rollDice();
+      
+      // Update local state immediately for responsive UI
+      setMyRoll(normalized);
+      
+      // Convert roll to string for database storage
+      const rollStr = String(normalized);
+      
+      // Update the game in Supabase
+      const { error: updateError } = await supabase
+        .from('games')
+        .update({
+          current_roll: rollStr,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', game.id);
+
+      if (updateError) {
+        console.error('Error updating roll:', updateError);
+        setMyRoll(null); // Revert on error
+      } else {
+        // Update local game state
+        setGame({ ...game, current_roll: rollStr });
+      }
+    } catch (err) {
+      console.error('Unexpected error during roll:', err);
+      setMyRoll(null);
+    } finally {
+      setIsRolling(false);
+    }
+  };
+
   // Loading state
   if (loading) {
     return (
@@ -206,7 +251,7 @@ export default function OnlineMatchScreen() {
               <View style={styles.titleColumn}>
                 <Text style={styles.subtle}>
                   Current claim: {game.current_claim || '—'} {'\n'}
-                  Your roll: —
+                  Your roll: {myRoll !== null ? String(myRoll) : '—'}
                 </Text>
               </View>
 
@@ -259,17 +304,17 @@ export default function OnlineMatchScreen() {
           <View style={styles.diceArea}>
             <View style={styles.diceRow}>
               <Dice
-                value={null}
-                rolling={false}
-                displayMode="prompt"
-                overlayText="Your"
+                value={myRoll !== null ? splitClaim(myRoll)[0] : null}
+                rolling={isRolling}
+                displayMode={myRoll !== null ? 'values' : 'prompt'}
+                overlayText={myRoll === null ? 'Your' : undefined}
               />
               <View style={{ width: 24 }} />
               <Dice
-                value={null}
-                rolling={false}
-                displayMode="prompt"
-                overlayText="Roll"
+                value={myRoll !== null ? splitClaim(myRoll)[1] : null}
+                rolling={isRolling}
+                displayMode={myRoll !== null ? 'values' : 'prompt'}
+                overlayText={myRoll === null ? 'Roll' : undefined}
               />
             </View>
           </View>
@@ -280,12 +325,9 @@ export default function OnlineMatchScreen() {
               <StyledButton
                 label="Roll"
                 variant="success"
-                onPress={() => {
-                  if (!isMyTurn) return;
-                  console.log('Roll (coming soon)');
-                }}
-                style={[styles.btn, !isMyTurn && styles.disabledButton]}
-                disabled={!isMyTurn}
+                onPress={handleRoll}
+                style={[styles.btn, (!isMyTurn || myRoll !== null) && styles.disabledButton]}
+                disabled={!isMyTurn || myRoll !== null || isRolling}
               />
               <StyledButton
                 label="Call Bluff"
