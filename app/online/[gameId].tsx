@@ -1,10 +1,11 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Image, SafeAreaView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Image, SafeAreaView, StyleSheet, Text, View } from 'react-native';
 import BluffModal from '../../src/components/BluffModal';
 import Dice from '../../src/components/Dice';
 import FeltBackground from '../../src/components/FeltBackground';
+import OnlineGameOverModal from '../../src/components/OnlineGameOverModal';
 import { ScoreDie } from '../../src/components/ScoreDie';
 import StyledButton from '../../src/components/StyledButton';
 import { splitClaim } from '../../src/engine/mexican';
@@ -36,6 +37,7 @@ type OnlineGame = {
 
 export default function OnlineMatchScreen() {
   const { gameId } = useLocalSearchParams<{ gameId?: string }>();
+  const router = useRouter();
   
   const [game, setGame] = useState<OnlineGame | null>(null);
   const [loading, setLoading] = useState(true);
@@ -44,6 +46,7 @@ export default function OnlineMatchScreen() {
   const [myRoll, setMyRoll] = useState<number | null>(null);
   const [isRolling, setIsRolling] = useState(false);
   const [claimPickerOpen, setClaimPickerOpen] = useState(false);
+  const [gameOverModalVisible, setGameOverModalVisible] = useState(false);
 
   useEffect(() => {
     const loadGame = async () => {
@@ -173,6 +176,58 @@ export default function OnlineMatchScreen() {
     // Only run when join status or game status changes
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [game?.id, game?.status, game?.player1_joined, game?.player2_joined]);
+
+  // Detect game over and show modal
+  useEffect(() => {
+    if (game?.status === 'finished' && game.winner) {
+      setGameOverModalVisible(true);
+    }
+  }, [game?.status, game?.winner]);
+
+  // Leave match handler
+  const handleLeaveMatch = async () => {
+    if (!game || !myUserId) return;
+
+    Alert.alert(
+      'Leave Match',
+      'Are you sure you want to forfeit this match? Your opponent will win.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Leave',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              // Determine winner (the opponent)
+              const isPlayer1 = myUserId === game.player1_id;
+              const winner = isPlayer1 ? 'player2' : 'player1';
+
+              // Update game as finished with opponent as winner
+              const { error: updateError } = await supabase
+                .from('games')
+                .update({
+                  status: 'finished',
+                  winner,
+                  updated_at: new Date().toISOString(),
+                })
+                .eq('id', game.id);
+
+              if (updateError) {
+                console.error('Error leaving match:', updateError);
+                alert('Failed to leave match');
+              } else {
+                // Navigate back to menu
+                router.replace('/');
+              }
+            } catch (err) {
+              console.error('Unexpected error leaving match:', err);
+              alert('An error occurred');
+            }
+          },
+        },
+      ]
+    );
+  };
 
   // Handle rolling dice for the current player
   const handleRoll = async () => {
@@ -438,6 +493,13 @@ export default function OnlineMatchScreen() {
           </View>
 
           {/* DICE BLOCK */}
+          {/* 
+            IMPORTANT: Dice hiding behavior (UI-level security)
+            - Only the local player sees their own dice (myRoll state)
+            - Opponents see only the CLAIM text, never the actual roll
+            - This is UX-level hiding; DB-level hiding + RLS will be added later
+            - The opponent's actual roll is in game.current_roll but we never display it
+          */}
           <View style={styles.diceArea}>
             <View style={styles.diceRow}>
               <Dice
@@ -489,13 +551,14 @@ export default function OnlineMatchScreen() {
               <StyledButton
                 label="Leave Match"
                 variant="ghost"
-                onPress={() => console.log('Leave (coming soon)')}
+                onPress={handleLeaveMatch}
                 style={[styles.btn, styles.ghostBtn]}
+                disabled={game.status === 'finished'}
               />
               <StyledButton
                 label="Menu"
                 variant="ghost"
-                onPress={() => console.log('Menu (coming soon)')}
+                onPress={() => router.push('/')}
                 style={[styles.btn, styles.ghostBtn]}
               />
               <StyledButton
@@ -525,6 +588,21 @@ export default function OnlineMatchScreen() {
               handleClaim(41);
             }}
           />
+
+          {/* GAME OVER MODAL */}
+          {game && game.status === 'finished' && game.winner && (
+            <OnlineGameOverModal
+              visible={gameOverModalVisible}
+              didIWin={isPlayer1 ? game.winner === 'player1' : game.winner === 'player2'}
+              myScore={myScore}
+              opponentScore={friendScore}
+              opponentName={friendName}
+              onClose={() => {
+                setGameOverModalVisible(false);
+                router.replace('/');
+              }}
+            />
+          )}
         </View>
       </SafeAreaView>
     </FeltBackground>
