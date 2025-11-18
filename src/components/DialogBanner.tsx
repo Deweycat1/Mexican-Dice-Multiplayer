@@ -18,7 +18,10 @@ export default function DialogBanner({ speaker, text }: DialogBannerProps) {
     <View style={containerStyle}>
       <View style={styles.dialogSpeaker}>
         {speaker === 'user' ? (
-          <Text style={styles.dialogSpeakerEmoji}>😇</Text>
+          <Image
+            source={require('../../assets/images/User.png')}
+            style={styles.dialogSpeakerImage}
+          />
         ) : (
           <Image
             source={require('../../assets/images/Rival.png')}

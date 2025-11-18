@@ -348,7 +348,10 @@ export default function Game() {
                 {/* Player Column */}
                 <View style={styles.playerColumn}>
                   <View style={styles.avatarCircle}>
-                    <Text style={styles.avatarEmoji}>😇</Text>
+                    <Image
+                      source={require('../assets/images/User.png')}
+                      style={styles.avatarImage}
+                    />
                   </View>
                   <Animated.View
                     style={{
