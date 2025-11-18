@@ -350,8 +350,8 @@ export default function Game() {
                   <View style={styles.avatarCircle}>
                     <Image
                       source={require('../assets/images/User.png')}
-                      style={styles.avatarImage}
-                      resizeMode="contain"
+                      style={styles.userAvatarImage}
+                      resizeMode="cover"
                     />
                   </View>
                   <Animated.View
@@ -378,8 +378,8 @@ export default function Game() {
                   <View style={styles.avatarCircle}>
                     <Image
                       source={require('../assets/images/Rival.png')}
-                      style={styles.avatarImage}
-                      resizeMode="contain"
+                      style={styles.rivalAvatarImage}
+                      resizeMode="cover"
                     />
                   </View>
                   <Animated.View
@@ -609,7 +609,11 @@ const styles = StyleSheet.create({
   avatarEmoji: {
     fontSize: 32,
   },
-  avatarImage: {
+  userAvatarImage: {
+    width: 60,
+    height: 60,
+  },
+  rivalAvatarImage: {
     width: 50,
     height: 50,
   },
