@@ -2,6 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { getCurrentUser, initializeAuth } from '../src/lib/auth';
 import { supabase } from '../src/lib/supabase';
 
 export default function OnlineScreen() {
@@ -15,10 +16,13 @@ export default function OnlineScreen() {
   useEffect(() => {
     const loadUsername = async () => {
       try {
+        // Initialize auth first (Phase 3: ensures user has Supabase session)
+        await initializeAuth();
+        
         const storedUsername = await AsyncStorage.getItem('username');
         setUsername(storedUsername);
       } catch (error) {
-        console.error('Error loading username:', error);
+        console.error('Error loading username or initializing auth:', error);
       } finally {
         setIsLoading(false);
       }
@@ -39,7 +43,16 @@ export default function OnlineScreen() {
     setIsCreatingGame(true);
 
     try {
-      // Fetch friend user
+      // Phase 3: Get authenticated Supabase user
+      const currentUser = await getCurrentUser();
+      
+      if (!currentUser) {
+        setMessage({ type: 'error', text: 'Authentication required. Please reload.' });
+        setIsCreatingGame(false);
+        return;
+      }
+
+      // Fetch friend user by username
       const { data: friend, error: friendError } = await supabase
         .from('users')
         .select('*')
@@ -52,24 +65,23 @@ export default function OnlineScreen() {
         return;
       }
 
-      // Get current user info from AsyncStorage
-      const myUserId = await AsyncStorage.getItem('userId');
+      // Get display username from AsyncStorage
       const myUsername = await AsyncStorage.getItem('username');
 
-      if (!myUserId || !myUsername) {
+      if (!myUsername) {
         setMessage({ type: 'error', text: 'Session error. Please sign in again.' });
         setIsCreatingGame(false);
         return;
       }
 
-      // Insert new game
+      // Insert new game with auth user IDs (Phase 3: RLS-ready)
       const { data: game, error: gameError } = await supabase
         .from('games')
         .insert({
-          player1_id: myUserId,
-          player1_username: myUsername,
-          player2_id: friend.id,
-          player2_username: friend.username,
+          player1_id: currentUser.id,  // Supabase auth user ID
+          player1_username: myUsername,  // Display name
+          player2_id: friend.id,  // Friend's Supabase auth user ID
+          player2_username: friend.username,  // Friend's display name
           status: 'waiting',
           current_player: 'player1',
         })

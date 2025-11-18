@@ -1,4 +1,3 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Image, SafeAreaView, StyleSheet, Text, View } from 'react-native';
@@ -9,9 +8,11 @@ import OnlineGameOverModal from '../../src/components/OnlineGameOverModal';
 import { ScoreDie } from '../../src/components/ScoreDie';
 import StyledButton from '../../src/components/StyledButton';
 import { splitClaim } from '../../src/engine/mexican';
-import { applyCallBluff, applyClaim, type CoreGameState } from '../../src/engine/onlineActions';
+import { applyClaim, type CoreGameState } from '../../src/engine/onlineActions';
 import { rollDice } from '../../src/engine/onlineRoll';
+import { initializeAuth } from '../../src/lib/auth';
 import { buildClaimOptions } from '../../src/lib/claimOptions';
+import { checkRateLimit, getMyCurrentRoll, resolveBluffSecure, saveHiddenRoll } from '../../src/lib/hiddenRolls';
 import { supabase } from '../../src/lib/supabase';
 
 type OnlineGame = {
@@ -58,11 +59,11 @@ export default function OnlineMatchScreen() {
       }
 
       try {
-        // Load user ID from AsyncStorage
-        const storedUserId = await AsyncStorage.getItem('userId');
-        setMyUserId(storedUserId);
+        // Phase 3: Initialize auth to ensure user has session
+        const user = await initializeAuth();
+        setMyUserId(user.id);
 
-        // Fetch game from Supabase
+        // Fetch game from Supabase (RLS now enforces access control)
         const { data, error: fetchError } = await supabase
           .from('games')
           .select('*')
@@ -83,6 +84,12 @@ export default function OnlineMatchScreen() {
         }
 
         setGame(data as OnlineGame);
+        
+        // Phase 3: Load my current roll from hidden rolls table
+        const currentRoll = await getMyCurrentRoll(gameId);
+        if (currentRoll) {
+          setMyRoll(currentRoll);
+        }
       } catch (err) {
         console.error('Unexpected error loading game:', err);
         setError('An unexpected error occurred');
@@ -235,28 +242,37 @@ export default function OnlineMatchScreen() {
     if (myRoll !== null) return; // Already rolled this turn
 
     try {
+      // Phase 3: Check rate limit (spam prevention)
+      const allowed = await checkRateLimit(game.id, 500);
+      if (!allowed) {
+        console.log('⏱️ Rate limit: action too soon');
+        return;
+      }
+
       setIsRolling(true);
 
       // Roll the dice using the same logic as Quick Play
       const { normalized } = rollDice();
       
+      // Phase 3: Save roll to secure hidden_rolls table
+      // Only the roller can see this via RLS
+      await saveHiddenRoll(game.id, normalized);
+      
       // Update local state immediately for responsive UI
       setMyRoll(normalized);
       
-      // Convert roll to string for database storage
-      const rollStr = String(normalized);
-      
-      // Update the game in Supabase
+      // Update game with action timestamp (for rate limiting)
+      // NOTE: We no longer store the actual roll in public.games
       const { error: updateError } = await supabase
         .from('games')
         .update({
-          current_roll: rollStr,
+          last_action_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         })
         .eq('id', game.id);
 
       if (updateError) {
-        console.error('Error updating roll:', updateError);
+        console.error('Error updating roll timestamp:', updateError);
         setMyRoll(null); // Revert on error
         alert('Failed to save roll');
       }
@@ -293,6 +309,7 @@ export default function OnlineMatchScreen() {
     last_action: core.lastAction,
     status: core.status,
     winner: core.winner,
+    last_action_at: new Date().toISOString(), // For rate limiting
     updated_at: new Date().toISOString(),
   });
 
@@ -302,6 +319,13 @@ export default function OnlineMatchScreen() {
     if (myRoll === null) return; // Must roll before claiming
 
     try {
+      // Rate limiting - prevent spam
+      const canProceed = await checkRateLimit(game.id, 500);
+      if (!canProceed) {
+        console.log('Rate limit hit for claim');
+        return;
+      }
+
       // Convert game to core state
       const coreState = mapGameToCoreState(game);
       
@@ -316,6 +340,7 @@ export default function OnlineMatchScreen() {
 
       // Update Supabase with new state
       const updates = mapCoreStateToGameUpdate(result.newState!);
+      
       const { error: updateError } = await supabase
         .from('games')
         .update(updates)
@@ -341,33 +366,35 @@ export default function OnlineMatchScreen() {
     if (!game.current_claim) return; // No claim to challenge
 
     try {
-      // Get the opponent's actual roll from the database
-      // In a real implementation, this should be stored securely
-      // For now, we'll use the current_roll field
-      const opponentRoll = game.current_roll ? parseInt(game.current_roll, 10) : 0;
-      
-      // Convert game to core state
-      const coreState = mapGameToCoreState(game);
-      
-      // Apply the bluff call using shared logic
-      const result = applyCallBluff(coreState, opponentRoll);
-      
-      // Update Supabase with new state (BluffResult always returns newState)
-      const updates = mapCoreStateToGameUpdate(result.newState!);
-      const { error: updateError } = await supabase
-        .from('games')
-        .update(updates)
-        .eq('id', game.id);
-
-      if (updateError) {
-        console.error('Error updating after bluff call:', updateError);
-        alert('Failed to update game');
-      } else {
-        // Clear roll and show result
-        setMyRoll(null);
-        alert(result.message);
-        // Real-time subscription will update game state
+      // Rate limiting - prevent spam
+      const canProceed = await checkRateLimit(game.id, 500);
+      if (!canProceed) {
+        console.log('Rate limit hit for bluff call');
+        return;
       }
+
+      // Use server-side RPC to resolve bluff securely
+      // Use server-side RPC to resolve bluff securely
+      // This prevents tampering and ensures opponent's roll stays hidden
+      const claimNumber = parseInt(String(game.current_claim), 10);
+      const result = await resolveBluffSecure(game.id, claimNumber);
+      
+      // RPC returns the bluff outcome
+      // Update local UI with new scores from server
+      // Real-time subscription will sync the full game state
+      
+      // Clear local roll state
+      setMyRoll(null);
+      
+      // Show result message to user
+      const winnerName = result.winner === 'player1' ? game.player1_username : 
+                         result.winner === 'player2' ? game.player2_username : null;
+      const message = winnerName 
+        ? `${winnerName} wins the game!`
+        : `${result.outcome > 0 ? 'Bluff caught' : 'Truth told'}! ${result.penalty} point penalty.`;
+      
+      alert(message);
+      // Real-time subscription will update game state with new scores/turn
     } catch (err) {
       console.error('Unexpected error during bluff call:', err);
       alert('An unexpected error occurred');

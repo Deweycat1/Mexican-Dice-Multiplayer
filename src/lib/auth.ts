@@ -1,0 +1,164 @@
+/**
+ * Supabase Authentication Helpers
+ * 
+ * Phase 3: Security Integration
+ * 
+ * AUTH STRATEGY:
+ * We use Supabase Anonymous Auth for a frictionless casual game experience.
+ * Users get a persistent auth session without any signup/login flow.
+ * 
+ * FUTURE: Can be upgraded to email/OAuth without breaking existing code.
+ */
+
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { User } from '@supabase/supabase-js';
+import { supabase } from './supabase';
+
+const AUTH_SESSION_KEY = 'mexican-dice-auth-session';
+
+/**
+ * Get the currently authenticated user
+ * Returns null if no session exists
+ */
+export async function getCurrentUser(): Promise<User | null> {
+  try {
+    const { data: { user }, error } = await supabase.auth.getUser();
+    
+    if (error) {
+      console.error('Error getting current user:', error);
+      return null;
+    }
+    
+    return user;
+  } catch (err) {
+    console.error('Unexpected error getting user:', err);
+    return null;
+  }
+}
+
+/**
+ * Sign in anonymously or restore existing session
+ * Creates a persistent anonymous user if none exists
+ * 
+ * This provides:
+ * - Stable user.id for RLS and game association
+ * - No friction (no email/password required)
+ * - Can be upgraded to real auth later
+ * 
+ * @returns The authenticated user
+ */
+export async function signInOrCreateUser(): Promise<User> {
+  try {
+    // Try to get existing session first
+    const { data: { session } } = await supabase.auth.getSession();
+    
+    if (session?.user) {
+      console.log('✅ Existing auth session found:', session.user.id);
+      return session.user;
+    }
+
+    // No existing session - create anonymous user
+    console.log('🔐 Creating anonymous auth session...');
+    
+    const { data, error } = await supabase.auth.signInAnonymously();
+    
+    if (error) {
+      throw new Error(`Anonymous sign-in failed: ${error.message}`);
+    }
+    
+    if (!data.user) {
+      throw new Error('No user returned from anonymous sign-in');
+    }
+    
+    console.log('✅ Anonymous auth session created:', data.user.id);
+    
+    // Store session for persistence across app restarts
+    if (data.session) {
+      await AsyncStorage.setItem(AUTH_SESSION_KEY, JSON.stringify(data.session));
+    }
+    
+    return data.user;
+  } catch (err) {
+    console.error('❌ Auth error:', err);
+    throw err;
+  }
+}
+
+/**
+ * Initialize auth on app launch
+ * Ensures user has a valid session before accessing protected features
+ * 
+ * Call this once on app startup or before entering online multiplayer
+ */
+export async function initializeAuth(): Promise<User> {
+  console.log('🚀 Initializing auth...');
+  
+  try {
+    // Try to restore session from storage
+    const storedSession = await AsyncStorage.getItem(AUTH_SESSION_KEY);
+    
+    if (storedSession) {
+      const session = JSON.parse(storedSession);
+      
+      // Set session in Supabase client
+      const { data, error } = await supabase.auth.setSession({
+        access_token: session.access_token,
+        refresh_token: session.refresh_token,
+      });
+      
+      if (!error && data.user) {
+        console.log('✅ Session restored from storage:', data.user.id);
+        return data.user;
+      }
+    }
+    
+    // No valid stored session - create new one
+    return await signInOrCreateUser();
+  } catch (err) {
+    console.error('Error initializing auth:', err);
+    // Fallback: create new session
+    return await signInOrCreateUser();
+  }
+}
+
+/**
+ * Sign out (mainly for testing/dev purposes)
+ * Clears both Supabase session and local storage
+ */
+export async function signOut(): Promise<void> {
+  try {
+    await supabase.auth.signOut();
+    await AsyncStorage.removeItem(AUTH_SESSION_KEY);
+    console.log('✅ Signed out successfully');
+  } catch (err) {
+    console.error('Error signing out:', err);
+  }
+}
+
+/**
+ * Listen for auth state changes
+ * Useful for updating UI when session expires or changes
+ */
+export function onAuthStateChange(callback: (user: User | null) => void) {
+  const { data: { subscription } } = supabase.auth.onAuthStateChange(
+    (_event, session) => {
+      callback(session?.user ?? null);
+    }
+  );
+  
+  return subscription;
+}
+
+/**
+ * Get the current user ID (convenience helper)
+ * Throws if not authenticated
+ */
+export async function requireUserId(): Promise<string> {
+  const user = await getCurrentUser();
+  
+  if (!user) {
+    throw new Error('User must be authenticated');
+  }
+  
+  return user.id;
+}
