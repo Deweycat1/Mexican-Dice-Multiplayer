@@ -1,10 +1,14 @@
-import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import React, { useEffect, useState } from 'react';
+import { ActivityIndicator, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { supabase } from '../src/lib/supabase';
 
 export default function OnlineScreen() {
   const [username, setUsername] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [friendUsername, setFriendUsername] = useState('');
+  const [message, setMessage] = useState<{ type: 'error' | 'success'; text: string } | null>(null);
+  const [isCreatingGame, setIsCreatingGame] = useState(false);
 
   useEffect(() => {
     const loadUsername = async () => {
@@ -21,6 +25,72 @@ export default function OnlineScreen() {
     loadUsername();
   }, []);
 
+  const handleStartGame = async () => {
+    setMessage(null);
+
+    // Validate friend username
+    if (!friendUsername.trim()) {
+      setMessage({ type: 'error', text: 'Please enter a friend\'s username' });
+      return;
+    }
+
+    setIsCreatingGame(true);
+
+    try {
+      // Fetch friend user
+      const { data: friend, error: friendError } = await supabase
+        .from('users')
+        .select('*')
+        .eq('username', friendUsername.trim())
+        .single();
+
+      if (friendError || !friend) {
+        setMessage({ type: 'error', text: 'User not found' });
+        setIsCreatingGame(false);
+        return;
+      }
+
+      // Get current user info from AsyncStorage
+      const myUserId = await AsyncStorage.getItem('userId');
+      const myUsername = await AsyncStorage.getItem('username');
+
+      if (!myUserId || !myUsername) {
+        setMessage({ type: 'error', text: 'Session error. Please sign in again.' });
+        setIsCreatingGame(false);
+        return;
+      }
+
+      // Insert new game
+      const { data: game, error: gameError } = await supabase
+        .from('games')
+        .insert({
+          player1_id: myUserId,
+          player1_username: myUsername,
+          player2_id: friend.id,
+          player2_username: friend.username,
+          status: 'waiting',
+          current_player: 'player1',
+        })
+        .select()
+        .single();
+
+      if (gameError) {
+        setMessage({ type: 'error', text: `Error creating game: ${gameError.message}` });
+        setIsCreatingGame(false);
+        return;
+      }
+
+      // Success
+      setMessage({ type: 'success', text: `Game created! ID: ${game.id}` });
+      setFriendUsername('');
+    } catch (error) {
+      console.error('Error starting game:', error);
+      setMessage({ type: 'error', text: 'An unexpected error occurred' });
+    } finally {
+      setIsCreatingGame(false);
+    }
+  };
+
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Online Play (Coming Soon)</Text>
@@ -34,6 +104,39 @@ export default function OnlineScreen() {
         <Text style={styles.username}>
           Signed in as: {username || 'Unknown'}
         </Text>
+      )}
+
+      {!isLoading && (
+        <View style={styles.gameCreationContainer}>
+          <Text style={styles.label}>Friend&apos;s Username</Text>
+          <TextInput
+            style={styles.input}
+            value={friendUsername}
+            onChangeText={setFriendUsername}
+            placeholder="Enter username"
+            placeholderTextColor="rgba(255, 255, 255, 0.4)"
+            autoCapitalize="none"
+            editable={!isCreatingGame}
+          />
+
+          <TouchableOpacity
+            style={[styles.button, isCreatingGame && styles.buttonDisabled]}
+            onPress={handleStartGame}
+            disabled={isCreatingGame}
+          >
+            {isCreatingGame ? (
+              <ActivityIndicator size="small" color="#FFFFFF" />
+            ) : (
+              <Text style={styles.buttonText}>Start Game</Text>
+            )}
+          </TouchableOpacity>
+
+          {message && (
+            <View style={[styles.messageContainer, message.type === 'error' ? styles.errorContainer : styles.successContainer]}>
+              <Text style={styles.messageText}>{message.text}</Text>
+            </View>
+          )}
+        </View>
       )}
     </View>
   );
@@ -67,6 +170,64 @@ const styles = StyleSheet.create({
     fontSize: 18,
     color: '#E0B50C',
     fontWeight: '600',
+    textAlign: 'center',
+    marginBottom: 32,
+  },
+  gameCreationContainer: {
+    width: '100%',
+    maxWidth: 400,
+    alignItems: 'stretch',
+  },
+  label: {
+    fontSize: 16,
+    color: '#FFFFFF',
+    fontWeight: '600',
+    marginBottom: 8,
+  },
+  input: {
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderWidth: 2,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+    borderRadius: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    fontSize: 16,
+    color: '#FFFFFF',
+    marginBottom: 20,
+  },
+  button: {
+    backgroundColor: '#0FA958',
+    borderRadius: 8,
+    paddingVertical: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 50,
+  },
+  buttonDisabled: {
+    backgroundColor: 'rgba(15, 169, 88, 0.5)',
+  },
+  buttonText: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  messageContainer: {
+    marginTop: 16,
+    padding: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  errorContainer: {
+    backgroundColor: 'rgba(220, 38, 38, 0.1)',
+    borderColor: 'rgba(220, 38, 38, 0.4)',
+  },
+  successContainer: {
+    backgroundColor: 'rgba(15, 169, 88, 0.1)',
+    borderColor: 'rgba(15, 169, 88, 0.4)',
+  },
+  messageText: {
+    fontSize: 14,
+    color: '#FFFFFF',
     textAlign: 'center',
   },
 });
