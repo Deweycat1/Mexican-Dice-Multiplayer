@@ -4,9 +4,9 @@
  */
 
 import {
-  resolveBluff,
-  isLegalRaise,
-  isReverseOf,
+    isLegalRaise,
+    isReverseOf,
+    resolveBluff,
 } from './mexican';
 
 export type CoreGameState = {
