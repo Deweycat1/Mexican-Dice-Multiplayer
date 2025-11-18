@@ -88,6 +88,23 @@ const pickRandomRivalLine = () => {
   const index = Math.floor(Math.random() * rivalOpeningLines.length);
   return rivalOpeningLines[index];
 };
+
+// End-of-game banner lines
+const HEAVENLY_LINES = [
+  "You ascend victorious.",
+  "Heaven smiles on your rolls.",
+  "Saint of the six pips.",
+  "You just blessed those dice.",
+];
+
+const DEMONIC_LINES = [
+  "Dragged into dice hell.",
+  "The devil devoured your points.",
+  "Your luck just went up in smoke.",
+  "You gambled with demons and lost.",
+];
+
+const pickRandom = (arr: string[]) => arr[Math.floor(Math.random() * arr.length)];
 // ------------------------------
 
 export default function Game() {
@@ -99,6 +116,13 @@ export default function Game() {
 
   // Rival opening taunt state
   const [hasRolledThisGame, setHasRolledThisGame] = useState<boolean>(false);
+
+  // End-of-game banner state
+  type EndBannerType = 'win' | 'lose' | null;
+  const [endBannerType, setEndBannerType] = useState<EndBannerType>(null);
+  const [endBannerLine, setEndBannerLine] = useState<string>('');
+  const endBannerOpacity = useRef(new Animated.Value(0)).current;
+  const endBannerTranslateY = useRef(new Animated.Value(10)).current;
 
   // Score loss animation values
   const userScoreAnim = useRef(new Animated.Value(0)).current;
@@ -241,6 +265,51 @@ export default function Game() {
     });
   }, [dialogAnim]);
 
+  // End-of-game banner function
+  const showEndBanner = useCallback((type: EndBannerType) => {
+    if (!type) return;
+
+    const line = type === 'win' ? pickRandom(HEAVENLY_LINES) : pickRandom(DEMONIC_LINES);
+
+    setEndBannerType(type);
+    setEndBannerLine(line);
+
+    // Reset animation state
+    endBannerOpacity.setValue(0);
+    endBannerTranslateY.setValue(10);
+
+    Animated.sequence([
+      Animated.parallel([
+        Animated.timing(endBannerOpacity, {
+          toValue: 1,
+          duration: 200,
+          useNativeDriver: true,
+        }),
+        Animated.timing(endBannerTranslateY, {
+          toValue: 0,
+          duration: 200,
+          useNativeDriver: true,
+        }),
+      ]),
+      Animated.delay(1100), // stay visible; 200 + 1100 + 200 = 1.5s total
+      Animated.parallel([
+        Animated.timing(endBannerOpacity, {
+          toValue: 0,
+          duration: 200,
+          useNativeDriver: true,
+        }),
+        Animated.timing(endBannerTranslateY, {
+          toValue: -10,
+          duration: 200,
+          useNativeDriver: true,
+        }),
+      ]),
+    ]).start(() => {
+      setEndBannerType(null);
+      setEndBannerLine('');
+    });
+  }, [endBannerOpacity, endBannerTranslateY]);
+
   // Combined effect for player score changes (animation + dialog)
   useEffect(() => {
     const prevScore = prevPlayerScore.current;
@@ -313,6 +382,17 @@ export default function Game() {
     setTimeout(() => showDialog('rival', openingLine), 500);
   }, [showDialog]);
 
+  // Watch for game over and show appropriate banner
+  useEffect(() => {
+    if (gameOver === 'player') {
+      // Player wins (Rival hit 0 points)
+      showEndBanner('win');
+    } else if (gameOver === 'cpu') {
+      // Player loses (Player hit 0 points)
+      showEndBanner('lose');
+    }
+  }, [gameOver, showEndBanner]);
+
   function handleRollOrClaim() {
     if (controlsDisabled) return;
 
@@ -384,6 +464,42 @@ export default function Game() {
   return (
     <View style={styles.root}>
       <FeltBackground>
+        {/* END-OF-GAME BANNER OVERLAY */}
+        {endBannerType && (
+          <Animated.View
+            pointerEvents="none"
+            style={[
+              styles.endBannerContainer,
+              {
+                opacity: endBannerOpacity,
+                transform: [{ translateY: endBannerTranslateY }],
+              },
+            ]}
+          >
+            <View
+              style={[
+                styles.endBannerContent,
+                endBannerType === 'win' ? styles.endBannerWin : styles.endBannerLose,
+              ]}
+            >
+              <Text style={[
+                styles.endBannerTitle,
+                endBannerType === 'win' ? styles.endBannerTitleWin : styles.endBannerTitleLose
+              ]}>
+                {endBannerType === 'win' ? 'You win' : 'You lose'}
+              </Text>
+              {!!endBannerLine && (
+                <Text style={[
+                  styles.endBannerSubtitle,
+                  endBannerType === 'win' ? styles.endBannerSubtitleWin : styles.endBannerSubtitleLose
+                ]}>
+                  {endBannerLine}
+                </Text>
+              )}
+            </View>
+          </Animated.View>
+        )}
+
         <SafeAreaView style={styles.safe}>
           <View style={styles.content}>
             {/* HEADER */}
@@ -900,6 +1016,61 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontSize: 14,
     marginVertical: 20,
+  },
+  // End-of-game banner styles
+  endBannerContainer: {
+    position: 'absolute',
+    top: '40%',
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+    zIndex: 999,
+  },
+  endBannerContent: {
+    minWidth: 240,
+    maxWidth: '80%',
+    borderRadius: 16,
+    paddingVertical: 20,
+    paddingHorizontal: 24,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.5,
+    shadowRadius: 12,
+    elevation: 10,
+  },
+  endBannerWin: {
+    backgroundColor: '#f5f6ff',
+    borderWidth: 2,
+    borderColor: '#ffd700',
+  },
+  endBannerLose: {
+    backgroundColor: '#260000',
+    borderWidth: 2,
+    borderColor: '#ff4444',
+  },
+  endBannerTitle: {
+    fontSize: 28,
+    fontWeight: '800',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  endBannerTitleWin: {
+    color: '#2a2a2a',
+  },
+  endBannerTitleLose: {
+    color: '#ffffff',
+  },
+  endBannerSubtitle: {
+    fontSize: 16,
+    textAlign: 'center',
+    fontWeight: '600',
+  },
+  endBannerSubtitleWin: {
+    color: '#444444',
+  },
+  endBannerSubtitleLose: {
+    color: '#ffcccc',
   },
   // rulesButton styles removed; using StyledButton with newGameBtn styling instead
 });
