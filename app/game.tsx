@@ -608,8 +608,8 @@ const styles = StyleSheet.create({
     fontSize: 32,
   },
   avatarImage: {
-    width: 52,
-    height: 52,
+    width: 50,
+    height: 50,
   },
   playerScoreLabel: {
     color: '#FFFFFF',
