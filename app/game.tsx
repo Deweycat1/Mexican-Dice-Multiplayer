@@ -178,10 +178,10 @@ export default function Game() {
     const rollPart = formatRoll(lastPlayerRoll);
     return (
       <>
-        Current claim: {renderClaim(lastClaimValue)} Your roll: {rollPart}
+        Current claim: {renderClaim(lastClaim)} Your roll: {rollPart}
       </>
     );
-  }, [lastClaimValue, lastPlayerRoll]);
+  }, [lastClaim, lastPlayerRoll]);
 
   const [playerHi, playerLo] = facesFromRoll(lastPlayerRoll);
   const [cpuHi, cpuLo] = facesFromRoll(lastCpuRoll);
