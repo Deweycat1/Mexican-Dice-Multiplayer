@@ -9,37 +9,6 @@ const ALL_ROLL_CODES = [
   '11', '22', '33', '44', '55', '66'
 ];
 
-// Theoretical probabilities for normalized rolls (high die first)
-// Based on 2d6 combinations: total 36 outcomes
-const EXPECTED_PROBABILITIES: Record<string, number> = {
-  // Mexican and specials
-  '21': 2 / 36, // (1,2), (2,1)
-  '31': 2 / 36, // (1,3), (3,1)
-  '41': 2 / 36, // (1,4), (4,1)
-  
-  // Normal pairs (high-first)
-  '32': 2 / 36, // (2,3), (3,2)
-  '42': 2 / 36, // (2,4), (4,2)
-  '43': 2 / 36, // (3,4), (4,3)
-  '51': 2 / 36, // (1,5), (5,1)
-  '52': 2 / 36, // (2,5), (5,2)
-  '53': 2 / 36, // (3,5), (5,3)
-  '54': 2 / 36, // (4,5), (5,4)
-  '61': 2 / 36, // (1,6), (6,1)
-  '62': 2 / 36, // (2,6), (6,2)
-  '63': 2 / 36, // (3,6), (6,3)
-  '64': 2 / 36, // (4,6), (6,4)
-  '65': 2 / 36, // (5,6), (6,5)
-  
-  // Doubles
-  '11': 1 / 36, // (1,1)
-  '22': 1 / 36, // (2,2)
-  '33': 1 / 36, // (3,3)
-  '44': 1 / 36, // (4,4)
-  '55': 1 / 36, // (5,5)
-  '66': 1 / 36, // (6,6)
-};
-
 type MetaStatsResponse = {
   honesty: {
     truthful: number;
@@ -77,17 +46,6 @@ type MetaStatsResponse = {
         losses: number;
         winRate: number;
         uses: number;
-      };
-    };
-  };
-  rollRarity: {
-    totalRolls: number;
-    rolls: {
-      [code: string]: {
-        count: number;
-        observed: number;
-        expected: number;
-        delta: number;
       };
     };
   };
@@ -143,19 +101,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }
       }
 
-      // 4. Fetch roll rarity stats
-      const totalRolls = (await kv.get<number>('rollStats:total')) ?? 0;
-      const rollsData: MetaStatsResponse['rollRarity']['rolls'] = {};
-
-      for (const code of ALL_ROLL_CODES) {
-        const count = (await kv.get<number>(`rollStats:${code}`)) ?? 0;
-        const observed = totalRolls > 0 ? count / totalRolls : 0;
-        const expected = EXPECTED_PROBABILITIES[code] ?? 0;
-        const delta = observed - expected;
-
-        rollsData[code] = { count, observed, expected, delta };
-      }
-
       const response: MetaStatsResponse = {
         honesty: {
           truthful: truthfulClaims,
@@ -178,10 +123,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           safest: safestClaim,
           mostDangerous: mostDangerousClaim,
           all: claimsRiskAll,
-        },
-        rollRarity: {
-          totalRolls,
-          rolls: rollsData,
         },
       };
 

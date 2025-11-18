@@ -95,17 +95,6 @@ interface MetaStats {
       };
     };
   };
-  rollRarity: {
-    totalRolls: number;
-    rolls: {
-      [code: string]: {
-        count: number;
-        observed: number;
-        expected: number;
-        delta: number;
-      };
-    };
-  };
 }
 
 export default function SecretStatsScreen() {
@@ -651,31 +640,6 @@ export default function SecretStatsScreen() {
                   <Text style={styles.noDataText}>Not enough data (need 5+ uses)</Text>
                 </View>
               )}
-            </View>
-          </View>
-        )}
-
-        {/* Roll Rarity Highlights */}
-        {metaStats?.rollRarity && metaStats.rollRarity.totalRolls > 0 && (
-          <View style={styles.card}>
-            <Text style={styles.cardTitle}>🎲 Roll Rarity (Observed vs Expected)</Text>
-            <View style={styles.statsTable}>
-              {['21', '31', '41', '66', '65', '11'].map((code) => {
-                const rollData = metaStats.rollRarity.rolls[code];
-                if (!rollData) return null;
-
-                return (
-                  <View key={code} style={styles.statRow}>
-                    <Text style={styles.statLabel}>{getRollLabel(code)}</Text>
-                    <View style={styles.statValues}>
-                      <Text style={styles.statCount}>{(rollData.observed * 100).toFixed(2)}%</Text>
-                      <Text style={styles.statPercent}>
-                        (exp: {(rollData.expected * 100).toFixed(2)}%)
-                      </Text>
-                    </View>
-                  </View>
-                );
-              })}
             </View>
           </View>
         )}
