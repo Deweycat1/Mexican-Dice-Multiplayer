@@ -93,6 +93,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       // 7. Total Rolls
       const totalRolls = (await kv.get<number>('rollStats:total')) ?? 0;
 
+      // Debug logging
+      console.log('[random-stats] Dice Math Debug:', {
+        diceMathMatches,
+        diceMathTransitions,
+        totalRolls,
+        expectedTransitions: totalRolls > 0 ? totalRolls - 1 : 0,
+      });
+
       const response: RandomStatsResponse = {
         honestyRating,
         mostCommonRoll,
