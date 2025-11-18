@@ -14,23 +14,6 @@ const ALL_ROLLS = [
 
 const keyForRoll = (roll: string) => `rollStats:${roll}`;
 
-/**
- * Check if two normalized rolls share at least one digit
- */
-function sharesDigit(prev: string, current: string): boolean {
-  const a0 = prev[0];
-  const a1 = prev[1];
-  const b0 = current[0];
-  const b1 = current[1];
-
-  return (
-    a0 === b0 ||
-    a0 === b1 ||
-    a1 === b0 ||
-    a1 === b1
-  );
-}
-
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Set CORS headers
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -51,21 +34,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (typeof roll !== 'string' || !ALL_ROLLS.includes(roll)) {
         return res.status(400).json({ error: 'Invalid roll code' });
       }
-
-      // Dice Math tracking: Check if this roll shares a digit with the previous roll
-      const lastRoll = await kv.get<string>('stats:player:lastRoll');
-      if (lastRoll && typeof lastRoll === 'string') {
-        // We have a previous roll, count this transition
-        await kv.incr('stats:player:diceMathTransitions');
-        
-        // Check if they share a digit
-        if (sharesDigit(lastRoll, roll)) {
-          await kv.incr('stats:player:diceMathMatches');
-        }
-      }
-      
-      // Update lastRoll for next time
-      await kv.set('stats:player:lastRoll', roll);
 
       // increment global counter for that roll
       const newValue = await kv.incr(keyForRoll(roll));

@@ -23,9 +23,6 @@ interface RandomStatsData {
   coldestRoll: string | null;
   averageTurnLengthMs: number | null;
   lowRollLieRate: number | null;
-  diceMathMatches: number | null;
-  diceMathTransitions: number | null;
-  diceMathRate: number | null;
   totalRolls: number;
 }
 
@@ -365,28 +362,6 @@ export default function StatsScreen() {
       return getRollLabel(roll);
     };
 
-    const formatDiceMath = (stats: RandomStatsData | null): string => {
-      if (stats === null) {
-        return 'Not enough data yet';
-      }
-      
-      const { totalRolls, diceMathTransitions, diceMathMatches, diceMathRate } = stats;
-      
-      // Show "Not enough data yet" only if:
-      // - totalRolls < 60, OR
-      // - carryOverEvents (diceMathTransitions) === 0
-      if (totalRolls < 60 || diceMathTransitions === null || diceMathTransitions === 0) {
-        return 'Not enough data yet';
-      }
-      
-      // If we have >= 60 rolls AND >= 1 carryOverEvent, show the percentage
-      if (diceMathRate !== null && diceMathMatches !== null) {
-        return `${diceMathMatches} matches (${diceMathRate.toFixed(0)}%)`;
-      }
-      
-      return 'Not enough data yet';
-    };
-
     return (
       <View style={styles.container}>
         <Pressable onPress={() => setCurrentView('menu')} style={styles.backButtonTop}>
@@ -442,14 +417,6 @@ export default function StatsScreen() {
                 <Text style={styles.bigNumber}>{formatPercentage(randomStats.lowRollLieRate)}</Text>
                 <Text style={styles.tendencyDescription}>
                   How often you bluff when you roll below a 61
-                </Text>
-              </View>
-
-              <View style={styles.card}>
-                <Text style={styles.cardTitle}>🧮 Dice Math</Text>
-                <Text style={styles.bigNumber}>{formatDiceMath(randomStats)}</Text>
-                <Text style={styles.tendencyDescription}>
-                  How often one of your dice carries into the next roll
                 </Text>
               </View>
             </>
