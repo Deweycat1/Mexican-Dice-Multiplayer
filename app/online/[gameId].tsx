@@ -172,6 +172,13 @@ export default function OnlineMatchScreen() {
   const friendName = isPlayer1 ? (game.player2_username || 'Friend') : game.player1_username;
   const friendScore = isPlayer1 ? game.player2_score : game.player1_score;
 
+  // Determine if it's my turn
+  const isMyTurn =
+    !!game &&
+    !!myUserId &&
+    ((isPlayer1 && game.current_player === 'player1') ||
+      (!isPlayer1 && game.current_player === 'player2'));
+
   return (
     <FeltBackground>
       <SafeAreaView style={styles.safe}>
@@ -236,7 +243,7 @@ export default function OnlineMatchScreen() {
                   return 'Both players joined. Starting game...';
                 }
               })()}
-              {game.status === 'active' && `Game in progress. ${game.current_player === 'player1' ? game.player1_username : game.player2_username}'s turn`}
+              {game.status === 'active' && (isMyTurn ? 'Your turn.' : `${friendName}'s turn.`)}
               {game.status === 'finished' && `Game finished! Winner: ${game.winner === 'player1' ? game.player1_username : game.player2_username}`}
             </Text>
           </View>
@@ -273,16 +280,22 @@ export default function OnlineMatchScreen() {
               <StyledButton
                 label="Roll"
                 variant="success"
-                onPress={() => console.log('Roll (coming soon)')}
-                style={styles.btn}
-                disabled={true}
+                onPress={() => {
+                  if (!isMyTurn) return;
+                  console.log('Roll (coming soon)');
+                }}
+                style={[styles.btn, !isMyTurn && styles.disabledButton]}
+                disabled={!isMyTurn}
               />
               <StyledButton
                 label="Call Bluff"
                 variant="primary"
-                onPress={() => console.log('Call Bluff (coming soon)')}
-                style={styles.btn}
-                disabled={true}
+                onPress={() => {
+                  if (!isMyTurn) return;
+                  console.log('Call Bluff (coming soon)');
+                }}
+                style={[styles.btn, !isMyTurn && styles.disabledButton]}
+                disabled={!isMyTurn}
               />
             </View>
 
@@ -290,9 +303,12 @@ export default function OnlineMatchScreen() {
               <StyledButton
                 label="Bluff Options"
                 variant="outline"
-                onPress={() => console.log('Bluff Options (coming soon)')}
-                style={styles.btnWide}
-                disabled={true}
+                onPress={() => {
+                  if (!isMyTurn) return;
+                  console.log('Bluff Options (coming soon)');
+                }}
+                style={[styles.btnWide, !isMyTurn && styles.disabledButton]}
+                disabled={!isMyTurn}
               />
             </View>
 
@@ -458,6 +474,9 @@ const styles = StyleSheet.create({
   ghostBtn: {
     borderWidth: 2,
     borderColor: '#e0b50c',
+  },
+  disabledButton: {
+    opacity: 0.4,
   },
   loadingText: {
     fontSize: 16,
