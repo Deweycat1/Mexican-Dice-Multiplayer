@@ -36,11 +36,6 @@ interface UniqueDevicesData {
   count: number;
 }
 
-interface ClaimOutcomeStats {
-  winning: Record<string, number>;
-  losing: Record<string, number>;
-}
-
 interface BehaviorStats {
   rival: {
     truths: number;
@@ -108,9 +103,6 @@ export default function SecretStatsScreen() {
   const [cpuWins, setCpuWins] = useState<number>(0);
   const [uniqueDevices, setUniqueDevices] = useState<number>(0);
   
-  // Claim outcome stats (winning/losing claims)
-  const [claimOutcomeStats, setClaimOutcomeStats] = useState<ClaimOutcomeStats | null>(null);
-  
   // Behavior stats (rival behavior and bluff calls)
   const [behaviorStats, setBehaviorStats] = useState<BehaviorStats | null>(null);
   
@@ -140,7 +132,6 @@ export default function SecretStatsScreen() {
           survivalAvgRes,
           winsRes,
           uniqueDevicesRes,
-          claimOutcomeRes,
           behaviorRes,
           metaRes
         ] = await Promise.all([
@@ -161,10 +152,6 @@ export default function SecretStatsScreen() {
             headers: { 'Content-Type': 'application/json' },
           }),
           fetch(`${baseUrl}/api/update-unique-devices`, {
-            method: 'GET',
-            headers: { 'Content-Type': 'application/json' },
-          }),
-          fetch(`${baseUrl}/api/claim-outcome-stats`, {
             method: 'GET',
             headers: { 'Content-Type': 'application/json' },
           }),
@@ -198,16 +185,7 @@ export default function SecretStatsScreen() {
           console.log('Unique devices count not available yet');
         }
         
-        // Parse new stats (with error handling)
-        try {
-          if (claimOutcomeRes.ok) {
-            const claimOutcomeData: ClaimOutcomeStats = await claimOutcomeRes.json();
-            setClaimOutcomeStats(claimOutcomeData);
-          }
-        } catch {
-          console.log('Claim outcome stats not available yet');
-        }
-        
+        // Parse behavior and meta stats (with error handling)
         try {
           if (behaviorRes.ok) {
             const behaviorData: BehaviorStats = await behaviorRes.json();
@@ -485,42 +463,6 @@ export default function SecretStatsScreen() {
             </View>
           </View>
         </View>
-
-        {/* Winning/Losing Claims */}
-        {claimOutcomeStats && (
-          <View style={styles.card}>
-            <Text style={styles.cardTitle}>🎯 Most Common Quick Play Outcomes</Text>
-            <View style={styles.statsTable}>
-              {(() => {
-                const winningEntries = Object.entries(claimOutcomeStats.winning);
-                const losingEntries = Object.entries(claimOutcomeStats.losing);
-                const topWinning = winningEntries.length > 0 
-                  ? winningEntries.sort((a, b) => b[1] - a[1])[0]
-                  : null;
-                const topLosing = losingEntries.length > 0
-                  ? losingEntries.sort((a, b) => b[1] - a[1])[0]
-                  : null;
-
-                return (
-                  <>
-                    <View style={styles.statRow}>
-                      <Text style={styles.statLabel}>Top Winning Claim</Text>
-                      <Text style={styles.statCountLarge}>
-                        {topWinning ? `${getRollLabel(topWinning[0])} (${topWinning[1]}×)` : 'N/A'}
-                      </Text>
-                    </View>
-                    <View style={styles.statRow}>
-                      <Text style={styles.statLabel}>Top Losing Claim</Text>
-                      <Text style={styles.statCountLarge}>
-                        {topLosing ? `${getRollLabel(topLosing[0])} (${topLosing[1]}×)` : 'N/A'}
-                      </Text>
-                    </View>
-                  </>
-                );
-              })()}
-            </View>
-          </View>
-        )}
 
         {/* Bluff Call Accuracy */}
         {behaviorStats?.bluffCalls && (
