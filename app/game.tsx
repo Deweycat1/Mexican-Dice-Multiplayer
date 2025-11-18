@@ -20,6 +20,7 @@ import FeltBackground from '../src/components/FeltBackground';
 import FireworksOverlay from '../src/components/FireworksOverlay';
 import { ScoreDie } from '../src/components/ScoreDie';
 import StyledButton from '../src/components/StyledButton';
+import ThinkingIndicator from '../src/components/ThinkingIndicator';
 import { isAlwaysClaimable, meetsOrBeats, splitClaim } from '../src/engine/mexican';
 import { buildClaimOptions } from '../src/lib/claimOptions';
 import { pickRandomLine, rivalPointWinLines, userPointWinLines } from '../src/lib/dialogLines';
@@ -613,19 +614,29 @@ export default function Game() {
             {/* DICE BLOCK */}
             <View testID="dice-area" style={styles.diceArea}>
               <View style={styles.diceRow}>
-                <Dice
-                  value={turn === 'player' ? playerHi : cpuHi}
-                  rolling={rolling}
-                  displayMode={diceDisplayMode}
-                  overlayText={diceDisplayMode === 'prompt' ? 'Your' : undefined}
-                />
-                <View style={{ width: 24 }} />
-                <Dice
-                  value={turn === 'player' ? playerLo : cpuLo}
-                  rolling={rolling}
-                  displayMode={diceDisplayMode}
-                  overlayText={diceDisplayMode === 'prompt' ? 'Roll' : undefined}
-                />
+                {showCpuThinking ? (
+                  <>
+                    <ThinkingIndicator size={100} position="left" />
+                    <View style={{ width: 24 }} />
+                    <ThinkingIndicator size={100} position="right" />
+                  </>
+                ) : (
+                  <>
+                    <Dice
+                      value={turn === 'player' ? playerHi : cpuHi}
+                      rolling={rolling}
+                      displayMode={diceDisplayMode}
+                      overlayText={diceDisplayMode === 'prompt' ? 'Your' : undefined}
+                    />
+                    <View style={{ width: 24 }} />
+                    <Dice
+                      value={turn === 'player' ? playerLo : cpuLo}
+                      rolling={rolling}
+                      displayMode={diceDisplayMode}
+                      overlayText={diceDisplayMode === 'prompt' ? 'Roll' : undefined}
+                    />
+                  </>
+                )}
               </View>
             </View>
 
