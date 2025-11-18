@@ -614,8 +614,8 @@ const styles = StyleSheet.create({
     height: 62,
   },
   rivalAvatarImage: {
-    width: 50,
-    height: 50,
+    width: 62,
+    height: 62,
   },
   playerScoreLabel: {
     color: '#FFFFFF',
