@@ -16,6 +16,8 @@ type OnlineGame = {
   player2_username: string | null;
   player1_score: number;
   player2_score: number;
+  player1_joined: boolean;
+  player2_joined: boolean;
   current_player: 'player1' | 'player2';
   current_claim: string | null;
   current_roll: string | null;
@@ -78,6 +80,62 @@ export default function OnlineMatchScreen() {
 
     loadGame();
   }, [gameId]);
+
+  // Mark the current player as joined
+  useEffect(() => {
+    if (!game || !myUserId) return;
+
+    const markJoined = async () => {
+      const isPlayer1 = myUserId === game.player1_id;
+      const field = isPlayer1 ? 'player1_joined' : 'player2_joined';
+
+      // If this field is already true in the current game object, do nothing
+      if ((isPlayer1 && game.player1_joined) || (!isPlayer1 && game.player2_joined)) {
+        return;
+      }
+
+      const { error: updateError } = await supabase
+        .from('games')
+        .update({ [field]: true })
+        .eq('id', game.id);
+
+      if (updateError) {
+        console.error('Error marking player as joined:', updateError);
+      } else {
+        // Update local state to reflect the change
+        setGame({ ...game, [field]: true });
+      }
+    };
+
+    markJoined();
+  }, [game, myUserId]);
+
+  // Auto-activate the game when both players have joined
+  useEffect(() => {
+    if (!game) return;
+
+    const maybeActivate = async () => {
+      if (
+        game.status === 'waiting' &&
+        game.player1_joined === true &&
+        game.player2_joined === true
+      ) {
+        const { error: updateError } = await supabase
+          .from('games')
+          .update({ status: 'active' })
+          .eq('id', game.id);
+
+        if (updateError) {
+          console.error('Error activating game:', updateError);
+        } else {
+          // Update local state to reflect the change
+          setGame({ ...game, status: 'active' });
+        }
+      }
+    };
+
+    maybeActivate();
+  }, [game]);
 
   // Loading state
   if (loading) {
@@ -163,8 +221,22 @@ export default function OnlineMatchScreen() {
 
             {/* Status text below */}
             <Text style={styles.status} numberOfLines={2}>
-              {game.status === 'waiting' && 'Waiting for both players...'}
-              {game.status === 'active' && `${game.current_player === 'player1' ? game.player1_username : game.player2_username}'s turn`}
+              {game.status === 'waiting' && (() => {
+                const isPlayer1 = myUserId === game.player1_id;
+                const myJoined = isPlayer1 ? game.player1_joined : game.player2_joined;
+                const friendJoined = isPlayer1 ? game.player2_joined : game.player1_joined;
+                
+                if (!myJoined && !friendJoined) {
+                  return 'Waiting for both players...';
+                } else if (myJoined && !friendJoined) {
+                  return 'Waiting for your friend to join...';
+                } else if (!myJoined && friendJoined) {
+                  return 'Waiting for you to join...';
+                } else {
+                  return 'Both players joined. Starting game...';
+                }
+              })()}
+              {game.status === 'active' && `Game in progress. ${game.current_player === 'player1' ? game.player1_username : game.player2_username}'s turn`}
               {game.status === 'finished' && `Game finished! Winner: ${game.winner === 'player1' ? game.player1_username : game.player2_username}`}
             </Text>
           </View>
