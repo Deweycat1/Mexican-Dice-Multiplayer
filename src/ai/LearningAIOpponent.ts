@@ -146,8 +146,8 @@ class OpponentProfile {
 
   constructor() {
     this.bluffRate = {
-      mexican: new BetaTracker(1, 4),  // Start VERY skeptical of Mexican claims
-      double: new BetaTracker(1, 2),
+      mexican: new BetaTracker(1, 4),  // Start VERY skeptical of Mexican claims (20% belief)
+      double: new BetaTracker(2, 1),   // Doubles are hard to beat - assume 67% bluff rate initially
       normal: new BetaTracker(1, 1),
       special: new BetaTracker(1, 1),
     };
@@ -261,7 +261,8 @@ export class LearningAIDiceOpponent {
     opponentId: string,
     currentClaim: number | null,
     myRoll: DicePair,
-    roundIndex = 0
+    roundIndex = 0,
+    actualClaimValue: number | null = null  // Actual claim including reverses (31/41)
   ): { type: 'call_bluff' } | { type: 'raise'; claim: number } {
     this.assertRulesReady();
 
@@ -328,15 +329,15 @@ export class LearningAIDiceOpponent {
       1
     );
 
-    // CRITICAL: Never waste time calling bluff on easily beatable claims
-    // If we can truthfully beat the claim with a decent roll, just do it
-    // EXCEPT for special claims (31, 41) which are reverses - must evaluate separately
-    const isEasyToBeat = category !== 'special' && (currentClaim < 52 || (truthful != null && currentClaim < 62));
+    // CRITICAL: Doubles are HARD to beat (need another double or Mexican), always high-stakes
+    // Normal pairs are easier to beat (any higher pair or double)
+    // Special claims (31, 41) are reverses - must evaluate separately
+    const isEasyToBeat = category === 'normal' && currentClaim < 62 && truthful != null;
     
-    // For high-stakes claims (Mexican, high doubles, high pairs, specials), evaluate calling bluff
+    // For high-stakes claims (Mexican, ALL doubles, high pairs, specials), evaluate calling bluff
     const isHighStakes = category === 'mexican' || 
                          category === 'special' ||
-                         (category === 'double' && currentClaim >= 44) ||
+                         category === 'double' ||  // ALL doubles are high-stakes (hard to beat)
                          (category === 'normal' && currentClaim >= 62);
 
     if (isHighStakes) {
@@ -349,19 +350,22 @@ export class LearningAIDiceOpponent {
       
       if (category === 'mexican') {
         // Mexican (21) - True odds are 1/36 (2.78%), so be VERY suspicious
-        // Target: ~73% call rate with initial 20% bluff belief (BetaTracker 1,4)
-        // With pBluff = 20%, threshold of 17% means always call (20% > 17%)
-        pThreshold = 0.17 - suspicionBoost;
-        // Floor at 12% to ensure high call rate
-        pThreshold = Math.max(pThreshold, 0.12);
+        // Target: ~95% call rate with initial 20% bluff belief (BetaTracker 1,4)
+        // With pBluff = 20%, threshold of 5% means almost always call (20% > 5%)
+        pThreshold = 0.05 - suspicionBoost;
+        // Floor at 3% to ensure very high call rate
+        pThreshold = Math.max(pThreshold, 0.03);
       } else if (category === 'double') {
-        // Doubles are 1/36 each, be aggressive
+        // Doubles are VERY hard to beat (1/36 each, need specific double or Mexican)
+        // Be aggressive on ALL doubles since they're inherently suspicious
         if (currentClaim >= 66) {
-          pThreshold = 0.40;  // Very aggressive on 66
+          pThreshold = 0.25;  // Very aggressive on 66 (only Mexican beats it)
         } else if (currentClaim >= 55) {
-          pThreshold = 0.45;  // Aggressive on 55
-        } else if (currentClaim >= 44) {
-          pThreshold = 0.50;  // Skeptical on 44
+          pThreshold = 0.30;  // Very aggressive on 55, 44
+        } else if (currentClaim >= 33) {
+          pThreshold = 0.35;  // Aggressive on 33, 22
+        } else {
+          pThreshold = 0.40;  // Skeptical on 11 (easier to beat with any double)
         }
       } else if (category === 'normal' && currentClaim >= 64) {
         // High normal pairs
@@ -369,9 +373,16 @@ export class LearningAIDiceOpponent {
       } else if (category === 'special') {
         // Special (31, 41) are reverses - must evaluate carefully
         // 31 reflects previous claim back, so AI must beat original claim
-        // If AI can't beat high claims (Mexican, high doubles), be aggressive
-        const canBeatHighClaims = truthful != null && this.compareClaimsFn!(truthful, 62) >= 0;
-        pThreshold = canBeatHighClaims ? 0.50 : 0.35; // More aggressive if weak roll
+        // Check if this is a reverse after Mexican or high double - be VERY aggressive
+        const isReverseAfterHighClaim = (actualClaimValue === 31 || actualClaimValue === 41) && 
+                                         (currentClaim === 21 || currentClaim === 66);
+        if (isReverseAfterHighClaim) {
+          pThreshold = 0.05;  // Very aggressive (95% call rate) on reverses after Mexican/66
+        } else {
+          // If AI can't beat high claims (Mexican, high doubles), be aggressive
+          const canBeatHighClaims = truthful != null && this.compareClaimsFn!(truthful, 62) >= 0;
+          pThreshold = canBeatHighClaims ? 0.50 : 0.35; // More aggressive if weak roll
+        }
       }
       
       if (pBluffSample >= pThreshold) {

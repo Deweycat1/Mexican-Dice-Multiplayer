@@ -669,7 +669,7 @@ export const useGameStore = create<Store>((set, get) => {
 
       // Use baselineClaim for AI decisions (preserves original claim through reverses)
       const claimForAI = baselineClaim ?? lastClaim ?? null;
-      const action = aiOpponent.decideAction('player', claimForAI, dicePair, roundIndexCounter);
+      const action = aiOpponent.decideAction('player', claimForAI, dicePair, roundIndexCounter, lastClaim);
 
       if (action.type === 'call_bluff') {
         pendingCpuRaise = null;
