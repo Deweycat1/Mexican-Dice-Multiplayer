@@ -47,8 +47,8 @@ const styles = StyleSheet.create({
   dialogContainer: {
     position: 'absolute',
     top: -5,
-    left: 65,
-    right: 65,
+    left: 75,
+    right: 75,
     flexDirection: 'row',
     paddingHorizontal: 14,
     paddingVertical: 8,
