@@ -1,9 +1,39 @@
-import { Link } from 'expo-router';
-import { Image, StyleSheet, Text, View } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Link, useRouter } from 'expo-router';
+import { useEffect } from 'react';
+import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import MexicanDiceLogo from '../assets/images/mexican-dice-logo.png';
+import { supabase } from '../src/lib/supabase';
 
 export default function HomeScreen() {
+  const router = useRouter();
+
+  useEffect(() => {
+    const testSupabase = async () => {
+      const { data, error } = await supabase.from('non_existing_table').select('*');
+      console.log('Supabase test result:', { data, error });
+    };
+
+    testSupabase();
+  }, []);
+
+  const handleOnlinePress = async () => {
+    try {
+      const storedUserId = await AsyncStorage.getItem('userId');
+      if (storedUserId) {
+        router.push('/online' as any);
+      } else {
+        router.push({
+          pathname: '/username' as any,
+          params: { redirect: '/online' },
+        } as any);
+      }
+    } catch (e) {
+      console.log('Error checking stored user id', e);
+    }
+  };
+
   return (
     <View style={styles.container}>
       <Image source={MexicanDiceLogo} style={styles.logo} />
@@ -16,6 +46,16 @@ export default function HomeScreen() {
       <Link href="/survival" style={styles.button}>
         <Text style={styles.buttonText}>Survival Mode</Text>
       </Link>
+
+      <Pressable 
+        onPress={handleOnlinePress}
+        style={({ pressed }) => [
+          styles.button,
+          pressed && styles.buttonPressed,
+        ]}
+      >
+        <Text style={styles.buttonText}>Play Online with a Friend</Text>
+      </Pressable>
 
       <Link href="/stats" style={styles.buttonStats}>
         <Text style={styles.buttonText}>Stats</Text>
