@@ -291,7 +291,7 @@ export default function Game() {
           useNativeDriver: true,
         }),
       ]),
-      Animated.delay(1100), // stay visible; 200 + 1100 + 200 = 1.5s total
+      Animated.delay(1600), // stay visible; 200 + 1600 + 200 = 2s total
       Animated.parallel([
         Animated.timing(endBannerOpacity, {
           toValue: 0,
