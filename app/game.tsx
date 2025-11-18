@@ -18,6 +18,7 @@ import DialogBanner from '../src/components/DialogBanner';
 import Dice from '../src/components/Dice';
 import FeltBackground from '../src/components/FeltBackground';
 import FireworksOverlay from '../src/components/FireworksOverlay';
+import { ScoreDie } from '../src/components/ScoreDie';
 import StyledButton from '../src/components/StyledButton';
 import { isAlwaysClaimable, meetsOrBeats, splitClaim } from '../src/engine/mexican';
 import { buildClaimOptions } from '../src/lib/claimOptions';
@@ -366,6 +367,7 @@ export default function Game() {
                       You: {playerScore}
                     </Text>
                   </Animated.View>
+                  <ScoreDie points={playerScore} style={styles.scoreDie} />
                 </View>
 
                 {/* Title Column - Now shows current claim */}
@@ -394,6 +396,7 @@ export default function Game() {
                       Rival: {cpuScore}
                     </Text>
                   </Animated.View>
+                  <ScoreDie points={cpuScore} style={styles.scoreDie} />
                 </View>
               </View>
 
@@ -625,6 +628,9 @@ const styles = StyleSheet.create({
     textShadowColor: 'rgba(0,0,0,0.4)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 2,
+  },
+  scoreDie: {
+    marginTop: 6,
   },
   titleColumn: {
     flex: 1,
