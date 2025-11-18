@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { Image, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import Animated, {
   Easing,
   useAnimatedStyle,
@@ -53,7 +53,7 @@ export default function ThinkingIndicator({
   const borderRadius = size <= 40 ? size * 0.2 : 20;
 
   if (position === 'left') {
-    // Rival emoji image
+    // Brain emoji
     return (
       <View
         style={[
@@ -65,17 +65,16 @@ export default function ThinkingIndicator({
           },
         ]}
       >
-        <Image
-          source={require('../../assets/images/Rival.png')}
+        <Text
           style={[
-            styles.rivalImage,
+            styles.brainEmoji,
             {
-              width: size * 0.85,
-              height: size * 0.85,
+              fontSize: size * 0.6,
             },
           ]}
-          resizeMode="contain"
-        />
+        >
+          🧠
+        </Text>
       </View>
     );
   }
@@ -114,11 +113,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     overflow: 'hidden',
   },
-  rivalImage: {
-    // Image is centered by parent flex properties
+  brainEmoji: {
+    textAlign: 'center',
+    lineHeight: undefined,
   },
   thoughtBubble: {
     textAlign: 'center',
-    lineHeight: undefined, // Let system handle emoji line height
+    lineHeight: undefined,
   },
 });
