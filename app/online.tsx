@@ -1,38 +1,59 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import { getCurrentUser, initializeAuth } from '../src/lib/auth';
+import { ensureUserProfile, type UserProfile } from '../src/lib/auth';
 import { supabase } from '../src/lib/supabase';
 
 export default function OnlineScreen() {
   const router = useRouter();
-  const [username, setUsername] = useState<string | null>(null);
+  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [profileError, setProfileError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [friendUsername, setFriendUsername] = useState('');
   const [message, setMessage] = useState<{ type: 'error' | 'success'; text: string } | null>(null);
   const [isCreatingGame, setIsCreatingGame] = useState(false);
 
   useEffect(() => {
-    const loadUsername = async () => {
+    let isMounted = true;
+
+    const loadProfile = async () => {
       try {
-        // Initialize auth first (Phase 3: ensures user has Supabase session)
-        await initializeAuth();
+        console.log('🚀 Loading user profile...');
+        const userProfile = await ensureUserProfile();
         
-        const storedUsername = await AsyncStorage.getItem('username');
-        setUsername(storedUsername);
-      } catch (error) {
-        console.error('Error loading username or initializing auth:', error);
+        if (isMounted) {
+          setProfile(userProfile);
+          setProfileError(null);
+          console.log('✅ Profile loaded:', userProfile.username);
+        }
+      } catch (error: any) {
+        console.error('❌ Failed to load user profile:', error);
+        
+        if (isMounted) {
+          setProfileError(error.message ?? 'Could not load user profile');
+        }
       } finally {
-        setIsLoading(false);
+        if (isMounted) {
+          setIsLoading(false);
+        }
       }
     };
 
-    loadUsername();
+    loadProfile();
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   const handleStartGame = async () => {
     setMessage(null);
+
+    // Validate that we have a profile
+    if (!profile) {
+      setMessage({ type: 'error', text: 'Please wait for your profile to load' });
+      return;
+    }
 
     // Validate friend username
     if (!friendUsername.trim()) {
@@ -43,15 +64,6 @@ export default function OnlineScreen() {
     setIsCreatingGame(true);
 
     try {
-      // Phase 3: Get authenticated Supabase user
-      const currentUser = await getCurrentUser();
-      
-      if (!currentUser) {
-        setMessage({ type: 'error', text: 'Authentication required. Please reload.' });
-        setIsCreatingGame(false);
-        return;
-      }
-
       // Fetch friend user by username
       const { data: friend, error: friendError } = await supabase
         .from('users')
@@ -65,21 +77,12 @@ export default function OnlineScreen() {
         return;
       }
 
-      // Get display username from AsyncStorage
-      const myUsername = await AsyncStorage.getItem('username');
-
-      if (!myUsername) {
-        setMessage({ type: 'error', text: 'Session error. Please sign in again.' });
-        setIsCreatingGame(false);
-        return;
-      }
-
       // Insert new game with auth user IDs (Phase 3: RLS-ready)
       const { data: game, error: gameError } = await supabase
         .from('games')
         .insert({
-          player1_id: currentUser.id,  // Supabase auth user ID
-          player1_username: myUsername,  // Display name
+          player1_id: profile.id,  // Current user's Supabase auth ID
+          player1_username: profile.username,  // Current user's display name
           player2_id: friend.id,  // Friend's Supabase auth user ID
           player2_username: friend.username,  // Friend's display name
           status: 'waiting',
@@ -107,16 +110,21 @@ export default function OnlineScreen() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Online Play (Coming Soon)</Text>
+      <Text style={styles.title}>Online Play</Text>
 
       {isLoading ? (
         <View style={styles.usernameContainer}>
           <ActivityIndicator size="small" color="#E0B50C" />
-          <Text style={styles.loadingText}>Loading...</Text>
+          <Text style={styles.loadingText}>Loading profile...</Text>
+        </View>
+      ) : profileError ? (
+        <View style={styles.errorBox}>
+          <Text style={styles.errorText}>⚠️ {profileError}</Text>
+          <Text style={styles.errorHint}>You can still try to play, but features may be limited.</Text>
         </View>
       ) : (
         <Text style={styles.username}>
-          Signed in as: {username || 'Unknown'}
+          Signed in as: {profile?.username ?? 'Unknown'}
         </Text>
       )}
 
@@ -186,6 +194,27 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     textAlign: 'center',
     marginBottom: 32,
+  },
+  errorBox: {
+    backgroundColor: 'rgba(220, 38, 38, 0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(220, 38, 38, 0.4)',
+    borderRadius: 8,
+    padding: 16,
+    marginBottom: 24,
+    maxWidth: 400,
+  },
+  errorText: {
+    fontSize: 16,
+    color: '#FF6B6B',
+    fontWeight: '600',
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  errorHint: {
+    fontSize: 14,
+    color: 'rgba(255, 255, 255, 0.7)',
+    textAlign: 'center',
   },
   gameCreationContainer: {
     width: '100%',

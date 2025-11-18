@@ -162,3 +162,104 @@ export async function requireUserId(): Promise<string> {
   
   return user.id;
 }
+
+/**
+ * User profile type matching public.users table
+ */
+export type UserProfile = {
+  id: string;
+  username: string;
+  created_at?: string;
+};
+
+/**
+ * Ensure the current authenticated user has a profile in public.users
+ * 
+ * This function:
+ * 1. Ensures user is authenticated (creates anonymous session if needed)
+ * 2. Checks if user has a row in public.users
+ * 3. If no row exists, generates a friendly username and creates one
+ * 4. Returns the user profile with id and username
+ * 
+ * @returns UserProfile with id and username
+ * @throws Error if authentication or profile creation fails
+ */
+export async function ensureUserProfile(): Promise<UserProfile> {
+  try {
+    // Step 1: Ensure we have an authenticated user
+    console.log('👤 Ensuring user profile...');
+    const user = await initializeAuth();
+    
+    if (!user) {
+      throw new Error('Failed to authenticate user');
+    }
+    
+    console.log('✅ User authenticated:', user.id);
+    
+    // Step 2: Try to fetch existing profile from public.users
+    const { data: existingProfile } = await supabase
+      .from('users')
+      .select('*')
+      .eq('id', user.id)
+      .single();
+    
+    // If profile exists and has a username, return it
+    if (existingProfile && existingProfile.username) {
+      console.log('✅ User profile found:', existingProfile.username);
+      return {
+        id: existingProfile.id,
+        username: existingProfile.username,
+        created_at: existingProfile.created_at,
+      };
+    }
+    
+    // Step 3: No profile exists - generate a friendly username
+    console.log('📝 No profile found, creating new profile...');
+    const randomSuffix = Math.floor(1000 + Math.random() * 9000);
+    const generatedUsername = `Player-${randomSuffix}`;
+    
+    console.log('🎲 Generated username:', generatedUsername);
+    
+    // Step 4: Insert new profile into public.users
+    const { data: newProfile, error: insertError } = await supabase
+      .from('users')
+      .insert({
+        id: user.id,
+        username: generatedUsername,
+      })
+      .select()
+      .single();
+    
+    if (insertError) {
+      console.error('❌ Error creating user profile:', insertError);
+      throw new Error(`Failed to create user profile: ${insertError.message}`);
+    }
+    
+    if (!newProfile) {
+      throw new Error('No data returned from profile insert');
+    }
+    
+    console.log('✅ User profile created:', newProfile.username);
+    
+    return {
+      id: newProfile.id,
+      username: newProfile.username,
+      created_at: newProfile.created_at,
+    };
+  } catch (err) {
+    console.error('❌ Failed to ensure user profile:', err);
+    
+    // Provide helpful error messages
+    if (err instanceof Error) {
+      if (err.message.includes('RLS')) {
+        throw new Error('Database access denied. Please check RLS policies.');
+      }
+      if (err.message.includes('authenticate')) {
+        throw new Error('Authentication failed. Please check your connection.');
+      }
+      throw err;
+    }
+    
+    throw new Error('Failed to load or create user profile');
+  }
+}
