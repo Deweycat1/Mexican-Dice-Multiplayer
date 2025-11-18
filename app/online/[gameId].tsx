@@ -1,7 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, ActivityIndicator, StyleSheet, ScrollView } from 'react-native';
+import { View, Text, ActivityIndicator, StyleSheet, SafeAreaView, Image } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '../../src/lib/supabase';
+import FeltBackground from '../../src/components/FeltBackground';
+import Dice from '../../src/components/Dice';
+import { ScoreDie } from '../../src/components/ScoreDie';
+import StyledButton from '../../src/components/StyledButton';
 
 type OnlineGame = {
   id: string;
@@ -26,6 +31,7 @@ export default function OnlineMatchScreen() {
   const [game, setGame] = useState<OnlineGame | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [myUserId, setMyUserId] = useState<string | null>(null);
 
   useEffect(() => {
     const loadGame = async () => {
@@ -37,6 +43,11 @@ export default function OnlineMatchScreen() {
       }
 
       try {
+        // Load user ID from AsyncStorage
+        const storedUserId = await AsyncStorage.getItem('userId');
+        setMyUserId(storedUserId);
+
+        // Fetch game from Supabase
         const { data, error: fetchError } = await supabase
           .from('games')
           .select('*')
@@ -71,7 +82,7 @@ export default function OnlineMatchScreen() {
   // Loading state
   if (loading) {
     return (
-      <View style={styles.container}>
+      <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#E0B50C" />
         <Text style={styles.loadingText}>Loading match...</Text>
       </View>
@@ -81,7 +92,7 @@ export default function OnlineMatchScreen() {
   // Error state
   if (error) {
     return (
-      <View style={styles.container}>
+      <View style={styles.loadingContainer}>
         <Text style={styles.errorText}>{error}</Text>
         <Text style={styles.hintText}>Please go back and try again.</Text>
       </View>
@@ -91,88 +102,290 @@ export default function OnlineMatchScreen() {
   // Not found state
   if (!game) {
     return (
-      <View style={styles.container}>
+      <View style={styles.loadingContainer}>
         <Text style={styles.errorText}>Match not found</Text>
       </View>
     );
   }
 
-  // Render game info
-  const shortenedId = game.id.substring(0, 8);
-  
-  let statusText = '';
-  if (game.status === 'waiting') {
-    statusText = 'Status: Waiting for both players';
-  } else if (game.status === 'active') {
-    statusText = 'Status: In progress';
-  } else if (game.status === 'finished') {
-    const winnerName = game.winner === 'player1' ? game.player1_username : game.player2_username || 'Unknown';
-    statusText = `Status: Finished. Winner: ${winnerName}`;
-  }
+  // Determine which player is me and which is friend
+  const isPlayer1 = myUserId === game.player1_id;
+  const myScore = isPlayer1 ? game.player1_score : game.player2_score;
+  const friendName = isPlayer1 ? (game.player2_username || 'Friend') : game.player1_username;
+  const friendScore = isPlayer1 ? game.player2_score : game.player1_score;
 
   return (
-    <ScrollView style={styles.scrollView} contentContainerStyle={styles.contentContainer}>
-      <Text style={styles.title}>Online Match</Text>
-      <Text style={styles.gameIdText}>Game ID: {shortenedId}</Text>
+    <FeltBackground>
+      <SafeAreaView style={styles.safe}>
+        <View style={styles.content}>
+          {/* HEADER */}
+          <View style={styles.headerCard}>
+            {/* Top row: Player avatar, title, Friend avatar */}
+            <View style={styles.headerRow}>
+              {/* Player Column (You) */}
+              <View style={styles.playerColumn}>
+                <View style={styles.avatarCircle}>
+                  <Image
+                    source={require('../../assets/images/User.png')}
+                    style={styles.userAvatarImage}
+                    resizeMode="cover"
+                  />
+                </View>
+                <Text style={styles.playerScoreLabel}>
+                  You: {myScore}
+                </Text>
+                <ScoreDie points={myScore} style={styles.scoreDie} />
+              </View>
 
-      <View style={styles.playersContainer}>
-        <View style={styles.playerCard}>
-          <Text style={styles.playerLabel}>Player 1</Text>
-          <Text style={styles.playerUsername}>{game.player1_username}</Text>
-          <Text style={styles.playerScore}>Score: {game.player1_score}</Text>
+              {/* Title Column - Shows current claim */}
+              <View style={styles.titleColumn}>
+                <Text style={styles.subtle}>
+                  Current claim: {game.current_claim || '—'} {'\n'}
+                  Your roll: —
+                </Text>
+              </View>
+
+              {/* Friend Column (Rival spot) */}
+              <View style={styles.playerColumn}>
+                <View style={styles.avatarCircle}>
+                  <Image
+                    source={require('../../assets/images/Rival.png')}
+                    style={styles.rivalAvatarImage}
+                    resizeMode="cover"
+                  />
+                </View>
+                <Text style={styles.playerScoreLabel}>
+                  {friendName}: {friendScore}
+                </Text>
+                <ScoreDie points={friendScore} style={styles.scoreDie} />
+              </View>
+            </View>
+
+            {/* Status text below */}
+            <Text style={styles.status} numberOfLines={2}>
+              {game.status === 'waiting' && 'Waiting for both players...'}
+              {game.status === 'active' && `${game.current_player === 'player1' ? game.player1_username : game.player2_username}'s turn`}
+              {game.status === 'finished' && `Game finished! Winner: ${game.winner === 'player1' ? game.player1_username : game.player2_username}`}
+            </Text>
+          </View>
+
+          {/* HISTORY BOX - Placeholder for now */}
+          <View style={styles.historyBox}>
+            <Text style={styles.historyText}>
+              Online match in progress. Gameplay coming soon.
+            </Text>
+          </View>
+
+          {/* DICE BLOCK */}
+          <View style={styles.diceArea}>
+            <View style={styles.diceRow}>
+              <Dice
+                value={null}
+                rolling={false}
+                displayMode="prompt"
+                overlayText="Your"
+              />
+              <View style={{ width: 24 }} />
+              <Dice
+                value={null}
+                rolling={false}
+                displayMode="prompt"
+                overlayText="Roll"
+              />
+            </View>
+          </View>
+
+          {/* ACTION BAR */}
+          <View style={styles.controls}>
+            <View style={styles.actionRow}>
+              <StyledButton
+                label="Roll"
+                variant="success"
+                onPress={() => console.log('Roll (coming soon)')}
+                style={styles.btn}
+                disabled={true}
+              />
+              <StyledButton
+                label="Call Bluff"
+                variant="primary"
+                onPress={() => console.log('Call Bluff (coming soon)')}
+                style={styles.btn}
+                disabled={true}
+              />
+            </View>
+
+            <View style={styles.bottomRow}>
+              <StyledButton
+                label="Bluff Options"
+                variant="outline"
+                onPress={() => console.log('Bluff Options (coming soon)')}
+                style={styles.btnWide}
+                disabled={true}
+              />
+            </View>
+
+            <View style={styles.bottomRow}>
+              <StyledButton
+                label="Leave Match"
+                variant="ghost"
+                onPress={() => console.log('Leave (coming soon)')}
+                style={[styles.btn, styles.ghostBtn]}
+              />
+              <StyledButton
+                label="Menu"
+                variant="ghost"
+                onPress={() => console.log('Menu (coming soon)')}
+                style={[styles.btn, styles.ghostBtn]}
+              />
+              <StyledButton
+                label="View Rules"
+                variant="ghost"
+                onPress={() => console.log('Rules (coming soon)')}
+                style={[styles.btn, styles.ghostBtn]}
+              />
+            </View>
+          </View>
         </View>
-
-        <View style={styles.playerCard}>
-          <Text style={styles.playerLabel}>Player 2</Text>
-          <Text style={styles.playerUsername}>
-            {game.player2_username || 'Waiting...'}
-          </Text>
-          <Text style={styles.playerScore}>Score: {game.player2_score}</Text>
-        </View>
-      </View>
-
-      <View style={styles.statusContainer}>
-        <Text style={styles.statusText}>{statusText}</Text>
-        
-        {game.status === 'active' && (
-          <Text style={styles.turnText}>
-            Current turn: {game.current_player === 'player1' ? 'Player 1' : 'Player 2'}
-          </Text>
-        )}
-      </View>
-    </ScrollView>
+      </SafeAreaView>
+    </FeltBackground>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  loadingContainer: {
     flex: 1,
     backgroundColor: '#0B3A26',
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 32,
   },
-  scrollView: {
+  safe: {
     flex: 1,
-    backgroundColor: '#0B3A26',
   },
-  contentContainer: {
-    alignItems: 'center',
-    paddingVertical: 40,
-    paddingHorizontal: 32,
+  content: {
+    flex: 1,
+    paddingHorizontal: 18,
+    paddingBottom: 20,
   },
-  title: {
-    fontSize: 32,
-    fontWeight: '800',
-    color: '#FFFFFF',
+  headerCard: {
+    position: 'relative',
+    backgroundColor: '#115E38',
+    borderRadius: 14,
+    padding: 14,
+    marginTop: 8,
+  },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
     marginBottom: 12,
+  },
+  playerColumn: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    minWidth: 70,
+  },
+  avatarCircle: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    borderWidth: 2,
+    borderColor: '#E0B50C',
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 6,
+  },
+  userAvatarImage: {
+    width: 62,
+    height: 62,
+  },
+  rivalAvatarImage: {
+    width: 56,
+    height: 56,
+  },
+  playerScoreLabel: {
+    color: '#FFFFFF',
+    fontWeight: '800',
+    fontSize: 18,
+    textAlign: 'center',
+    textShadowColor: 'rgba(0,0,0,0.4)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
+  },
+  scoreDie: {
+    marginTop: 6,
+  },
+  titleColumn: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 8,
+    marginTop: 75,
+  },
+  subtle: {
+    color: '#E0B50C',
+    fontWeight: '800',
+    fontSize: 18,
+    marginBottom: 6,
     textAlign: 'center',
   },
-  gameIdText: {
-    fontSize: 14,
-    color: 'rgba(255, 255, 255, 0.6)',
-    marginBottom: 32,
+  status: {
+    color: '#fff',
+    opacity: 0.95,
     textAlign: 'center',
+  },
+  historyBox: {
+    alignSelf: 'center',
+    width: '70%',
+    minHeight: 72,
+    backgroundColor: 'rgba(0,0,0,0.32)',
+    borderColor: '#000',
+    borderWidth: 2,
+    borderRadius: 6,
+    padding: 10,
+    marginTop: 12,
+    marginBottom: 10,
+    justifyContent: 'center',
+  },
+  historyText: {
+    color: '#E6FFE6',
+    textAlign: 'center',
+    fontSize: 13,
+    marginVertical: 2,
+  },
+  diceArea: {
+    flexGrow: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginVertical: 12,
+  },
+  diceRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  controls: {
+    paddingTop: 8,
+  },
+  actionRow: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 12,
+  },
+  bottomRow: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 12,
+  },
+  btn: {
+    flex: 1,
+  },
+  btnWide: {
+    flex: 1,
+  },
+  ghostBtn: {
+    borderWidth: 2,
+    borderColor: '#e0b50c',
   },
   loadingText: {
     fontSize: 16,
@@ -188,59 +401,6 @@ const styles = StyleSheet.create({
   hintText: {
     fontSize: 14,
     color: 'rgba(255, 255, 255, 0.6)',
-    textAlign: 'center',
-  },
-  playersContainer: {
-    width: '100%',
-    maxWidth: 400,
-    marginBottom: 32,
-  },
-  playerCard: {
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    borderRadius: 12,
-    padding: 20,
-    marginBottom: 16,
-    borderWidth: 2,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
-  },
-  playerLabel: {
-    fontSize: 12,
-    color: 'rgba(255, 255, 255, 0.6)',
-    fontWeight: '600',
-    textTransform: 'uppercase',
-    marginBottom: 8,
-  },
-  playerUsername: {
-    fontSize: 20,
-    color: '#E0B50C',
-    fontWeight: '700',
-    marginBottom: 8,
-  },
-  playerScore: {
-    fontSize: 16,
-    color: '#FFFFFF',
-    fontWeight: '500',
-  },
-  statusContainer: {
-    width: '100%',
-    maxWidth: 400,
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    borderRadius: 12,
-    padding: 20,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
-  },
-  statusText: {
-    fontSize: 16,
-    color: '#FFFFFF',
-    fontWeight: '600',
-    textAlign: 'center',
-    marginBottom: 8,
-  },
-  turnText: {
-    fontSize: 14,
-    color: '#0FA958',
-    fontWeight: '600',
     textAlign: 'center',
   },
 });
