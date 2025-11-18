@@ -215,8 +215,22 @@ export async function ensureUserProfile(): Promise<UserProfile> {
     
     // Step 3: No profile exists - generate a friendly username
     console.log('📝 No profile found, creating new profile...');
-    const randomSuffix = Math.floor(1000 + Math.random() * 9000);
-    const generatedUsername = `Player-${randomSuffix}`;
+    
+    // Generate Color-Animal username (e.g., "Red-Panda", "Blue-Hawk")
+    const colors = [
+      'Red', 'Blue', 'Green', 'Gold', 'Silver', 'Purple', 'Orange', 
+      'Pink', 'Teal', 'Crimson', 'Azure', 'Jade', 'Amber', 'Violet'
+    ];
+    
+    const animals = [
+      'Panda', 'Tiger', 'Eagle', 'Wolf', 'Fox', 'Bear', 'Hawk', 
+      'Lion', 'Jaguar', 'Falcon', 'Cobra', 'Dragon', 'Phoenix', 
+      'Panther', 'Raven', 'Shark', 'Lynx', 'Otter'
+    ];
+    
+    const randomColor = colors[Math.floor(Math.random() * colors.length)];
+    const randomAnimal = animals[Math.floor(Math.random() * animals.length)];
+    const generatedUsername = `${randomColor}-${randomAnimal}`;
     
     console.log('🎲 Generated username:', generatedUsername);
     
