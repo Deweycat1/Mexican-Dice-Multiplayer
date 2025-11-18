@@ -610,12 +610,12 @@ const styles = StyleSheet.create({
     fontSize: 32,
   },
   userAvatarImage: {
-    width: 62,
-    height: 62,
+    width: 56,
+    height: 56,
   },
   rivalAvatarImage: {
-    width: 62,
-    height: 62,
+    width: 56,
+    height: 56,
   },
   playerScoreLabel: {
     color: '#FFFFFF',
