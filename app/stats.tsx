@@ -26,6 +26,7 @@ interface RandomStatsData {
   diceMathMatches: number | null;
   diceMathTransitions: number | null;
   diceMathRate: number | null;
+  totalRolls: number;
 }
 
 interface RollStat {
@@ -365,10 +366,25 @@ export default function StatsScreen() {
     };
 
     const formatDiceMath = (stats: RandomStatsData | null): string => {
-      if (stats === null || stats.diceMathRate === null || stats.diceMathMatches === null) {
+      if (stats === null) {
         return 'Not enough data yet';
       }
-      return `${stats.diceMathMatches} matches (${stats.diceMathRate.toFixed(0)}%)`;
+      
+      const { totalRolls, diceMathTransitions, diceMathMatches, diceMathRate } = stats;
+      
+      // Show "Not enough data yet" only if:
+      // - totalRolls < 60, OR
+      // - carryOverEvents (diceMathTransitions) === 0
+      if (totalRolls < 60 || diceMathTransitions === null || diceMathTransitions === 0) {
+        return 'Not enough data yet';
+      }
+      
+      // If we have >= 60 rolls AND >= 1 carryOverEvent, show the percentage
+      if (diceMathRate !== null && diceMathMatches !== null) {
+        return `${diceMathMatches} matches (${diceMathRate.toFixed(0)}%)`;
+      }
+      
+      return 'Not enough data yet';
     };
 
     return (

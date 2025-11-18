@@ -20,6 +20,7 @@ type RandomStatsResponse = {
   diceMathMatches: number | null;     // count of transitions with shared digit
   diceMathTransitions: number | null; // total consecutive roll pairs
   diceMathRate: number | null;        // percentage 0–100
+  totalRolls: number;                 // total rolls recorded
 };
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -89,6 +90,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         ? (diceMathMatches / diceMathTransitions) * 100
         : null;
 
+      // 7. Total Rolls
+      const totalRolls = (await kv.get<number>('rollStats:total')) ?? 0;
+
       const response: RandomStatsResponse = {
         honestyRating,
         mostCommonRoll,
@@ -98,6 +102,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         diceMathMatches: diceMathTransitions > 0 ? diceMathMatches : null,
         diceMathTransitions: diceMathTransitions > 0 ? diceMathTransitions : null,
         diceMathRate,
+        totalRolls,
       };
 
       return res.status(200).json(response);
