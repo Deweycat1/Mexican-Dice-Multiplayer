@@ -1,10 +1,10 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { LayoutChangeEvent, Platform, StyleSheet, Text, View } from 'react-native';
 import Animated, {
-  Easing,
-  useAnimatedStyle,
-  useSharedValue,
-  withTiming,
+    Easing,
+    useAnimatedStyle,
+    useSharedValue,
+    withTiming,
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
